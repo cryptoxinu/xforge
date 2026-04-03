@@ -34,6 +34,19 @@ Tell the user: "Backed up your existing files. If anything goes wrong, your orig
 
 NEVER skip this step. NEVER overwrite without backup. This is non-negotiable.
 
+### Do No Harm Principle
+
+After generating or improving a CLAUDE.md, BEFORE writing it, do a final safety check:
+
+1. **Compare original vs proposed** — read both side by side
+2. **For every line REMOVED**: confirm it was genuinely dead weight, not a hard-won project rule. If unsure, KEEP IT
+3. **For every line CHANGED**: confirm the new version is strictly more specific, not vaguer. "Always validate inputs" → "All API endpoints MUST validate with Zod" is good. The reverse is destructive
+4. **For every line ADDED**: confirm it passes the load-bearing test. Does Claude actually need this rule to avoid a mistake?
+5. **Ask yourself**: "If the user runs this in their next 5 sessions, will Claude behave BETTER or WORSE?" If there is ANY doubt, present the changes as suggestions rather than applying them
+6. **Present a diff** to the user showing exactly what changed and why. Never silently rewrite
+
+If the original CLAUDE.md is already high-quality (grade A or B), recommend targeted improvements rather than a full rewrite. A scalpel, not a sledgehammer.
+
 ## Phase 1: Project Discovery
 
 Scan the project to understand it before writing a single rule:
@@ -412,6 +425,21 @@ The generated CLAUDE.md MUST include a rigor section when the project has signif
 - Every new function must have a CALLER. Never write code that isn't wired into the system. If you create a utility, show where it's used. If you create an API endpoint, show how it's reached
 - After implementing: trace the full data path from entry point to storage and back. Verify every connection exists. "I wrote the function" is not done — "the function is called and the data flows through" is done
 - For features touching 3+ files: use subagents to keep context clean. One agent per concern (e.g., one for backend, one for frontend, one for tests)
+
+## Anti-Silent-Failure (CRITICAL)
+- NEVER claim a feature "works" or "is complete" without proving the FULL path is connected: route registered → handler called → service invoked → data persisted → response returned → UI updated
+- After building any feature: actually CALL it. Hit the endpoint, trigger the event, click the button. If you can't test it, explain exactly what manual step is needed and why
+- Check for these silent-failure patterns before marking done:
+  - Route/endpoint defined but not registered in the router
+  - Event handler written but not attached to the event emitter
+  - Config option added but never read by the code that needs it
+  - Error handler that catches and swallows (try/except with pass or bare logging)
+  - Frontend component built but not imported or rendered anywhere
+  - Database migration written but not added to the migration chain
+  - Background job defined but not scheduled
+  - Middleware written but not added to the middleware stack
+- If ANY connection in the chain is missing, the feature is NOT done — it is BROKEN. Fix the wiring before reporting completion
+- NEVER say "now it supports X" unless you can show the code path where X actually executes end-to-end
 ```
 
 ## Phase 10: Self-Improving CLAUDE.md That Stays Lean
@@ -670,6 +698,9 @@ Present results as:
 | Complex project needs 200+ lines | One-size-fits-all line limit | Smart migration to .claude/rules/ with path scoping |
 | Over-simplifies complex code | Hard line limits cause premature splitting | Soft guidelines: "prefer under 50/300 but NEVER truncate to hit a number" |
 | Says "too complex, simplifying" | No anti-truncation rule | "If task requires 500 lines, write 500 lines. Inherent complexity is not a defect" |
+| Builds features that silently fail | No wiring verification requirement | Anti-Silent-Failure checklist: prove full path is connected end-to-end |
+| Says "now it supports X" but X is broken | No end-to-end call verification | "NEVER say 'now it supports X' unless you show the code path where X executes" |
+| xforge makes CLAUDE.md worse | No safety check before applying | Do No Harm: compare before/after, present diff, keep if unsure |
 
 ## References for Deep Dives
 
