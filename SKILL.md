@@ -112,6 +112,34 @@ Flag and remove these if found:
 
 Output the score, then list specific improvements.
 
+### Decision Point: What to Do Based on Grade
+
+This decision MUST be followed — it prevents xforge from making things worse:
+
+**Grade A (65-80)** — DO NOT REWRITE. The file is working. Only:
+  - Add missing sections (e.g., no verification commands? Add them)
+  - Tighten vague lines to be more specific
+  - Suggest .claude/rules/ migration IF over 150 lines
+  - Present changes as a SHORT diff, not a new file
+
+**Grade B (50-64)** — TARGETED IMPROVEMENTS only:
+  - Add missing mandatory sections (anti-slop preamble, verification, plan enforcement)
+  - Sharpen vague rules with project-specific details from Phase 1 discovery
+  - Do NOT remove or rewrite existing project-specific rules
+  - Present as a diff with clear before/after for each change
+
+**Grade C (35-49)** — REWRITE RECOMMENDED but preserve all project-specific rules:
+  - Keep every PROTECTED and MOVABLE rule (per NEVER-PRUNE classification)
+  - Restructure around the mandatory sections template
+  - Fill gaps with stack-appropriate rules from Phase 1 discovery
+
+**Grade D/F (0-34)** — FULL REWRITE justified:
+  - Generate fresh using Phase 3 template
+  - Scan old file for any project-specific knowledge worth saving
+  - If any found, incorporate into the new file
+
+**For `/xforge analyze`**: Skip Phases 0, 3, 4, 5, and all writes. Only run Phases 1, 2, and 2.5. Output the score, classification table, and recommendations — change NOTHING.
+
 ## Phase 2.5: Make Every Line Load-Bearing (Improve Existing)
 
 When improving an existing CLAUDE.md (not generating from scratch), the goal is to make every line carry maximum weight. For each line in the existing file, apply this decision tree:
@@ -216,7 +244,30 @@ YOU ARE FORBIDDEN from reporting a task as complete until all 4 pass with zero e
 - Test edge cases, boundaries, and unexpected input — not just the happy path
 ```
 
-#### Section 6: Self-Improvement (LAST LINES — recency attention)
+#### Section 6: Project Boundary + Git Safety
+
+```markdown
+## Project Boundary
+YOU MUST ONLY modify files within this project directory. NEVER touch files in other projects or system files unless explicitly asked.
+
+## Git Safety
+- NEVER `git push` without explicit user approval
+- NEVER `git commit` with `-A` or `.` — stage specific files by name
+- NEVER `git reset --hard`, `git checkout .`, `git clean -f`
+- If you see uncommitted changes you didn't create: STOP and ask. Another session may be active
+```
+
+#### Section 7: Anti-Silent-Failure + Wiring Verification
+
+```markdown
+## Wiring Verification (before claiming ANY feature works)
+- Prove the FULL path is connected: route registered → handler called → service invoked → data persisted → response returned
+- Check for: unregistered routes, unattached event handlers, unread config, swallowed errors, unrendered components, unscheduled jobs, missing middleware
+- NEVER say "now it supports X" unless you can show the code path where X actually executes end-to-end
+- If ANY connection is missing, the feature is BROKEN — fix it before reporting completion
+```
+
+#### Section 8: Self-Improvement (LAST LINES — recency attention)
 
 ```markdown
 ## When Corrected
