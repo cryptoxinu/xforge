@@ -1,20 +1,38 @@
 ---
 name: xforge
-description: "Audit, score, and generate battle-tested CLAUDE.md files that enforce plan adherence, prevent bandaid fixes, and eliminate refactoring debt. The ultimate CLAUDE.md forge. By cryptoxinu."
+description: "Xinu's ClaudeMD Fix — audit, score, improve, and generate battle-tested CLAUDE.md files that enforce plan adherence, prevent bandaid fixes, and eliminate refactoring debt."
 origin: custom
 ---
 
-# xforge
+# Xinu's ClaudeMD Fix
 
 Forge battle-tested CLAUDE.md files that actually get followed. Based on research from 50+ production CLAUDE.md files, Boris Cherny's team practices, ETH Zurich's instruction-budget research, and battle-tested anti-slop rules from the community.
 
 ## When to Activate
 
-- `/xforge` — audit + improve existing CLAUDE.md in current project
-- `/xforge new` — generate fresh CLAUDE.md for current project
-- `/xforge audit` — score-only mode, no changes
+- `/xforge` — audit + improve existing CLAUDE.md in current project (always backs up first)
+- `/xforge analyze` — read-only analysis: score, classify every rule, recommend improvements — changes NOTHING
+- `/xforge new` — generate fresh CLAUDE.md for current project from scratch
+- `/xforge audit` — score-only mode with grade (A-F), no changes
 - `/xforge global` — improve `~/.claude/CLAUDE.md`
 - When user says "improve my claude md", "fix my claude.md", "my claude.md sucks", "claude keeps ignoring rules"
+
+## Phase 0: Mandatory Backup (ALWAYS — before ANY change)
+
+Before touching ANY existing CLAUDE.md or .claude/rules/ file, ALWAYS create a timestamped backup:
+
+```bash
+# Backup root CLAUDE.md
+!`cp CLAUDE.md "CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null`
+# Backup .claude/CLAUDE.md if it exists
+!`cp .claude/CLAUDE.md ".claude/CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null`
+# Backup all rules files
+!`tar czf ".claude/rules-backup-$(date +%Y%m%d-%H%M%S).tar.gz" .claude/rules/ 2>/dev/null`
+```
+
+Tell the user: "Backed up your existing files. If anything goes wrong, your originals are preserved with timestamps. You can always restore."
+
+NEVER skip this step. NEVER overwrite without backup. This is non-negotiable.
 
 ## Phase 1: Project Discovery
 
@@ -81,9 +99,43 @@ Flag and remove these if found:
 
 Output the score, then list specific improvements.
 
+## Phase 2.5: Make Every Line Load-Bearing (Improve Existing)
+
+When improving an existing CLAUDE.md (not generating from scratch), the goal is to make every line carry maximum weight. For each line in the existing file, apply this decision tree:
+
+**1. Is this line project-specific knowledge Claude cannot infer from code?**
+   - YES → Keep. This is load-bearing.
+   - NO → Candidate for removal. Test: delete it mentally. Would Claude break something?
+
+**2. Is this line concrete and verifiable?**
+   - "Always validate inputs" → TOO VAGUE. Rewrite to: "All API endpoints MUST validate input with [project's schema lib] before processing"
+   - "Use the repository pattern" → TOO VAGUE. Rewrite to: "Data access goes through `src/repos/`. Never query the DB directly from route handlers"
+
+**3. Is this line missing context Claude needs?**
+   - Scan the project for: build commands, test runners, linters, key architectural patterns, known gotchas, data flow invariants
+   - If the CLAUDE.md doesn't mention them but Claude would need them, ADD them
+   - Example: project uses a custom build step but CLAUDE.md only says "npm test" — add the full verification chain
+
+**4. Is this line duplicating what a linter/formatter enforces?**
+   - YES → Remove from CLAUDE.md, confirm the tool config exists
+
+**5. Does this line have a positive alternative?**
+   - "Don't use X" → Rewrite to: "Don't use X — use Y instead"
+   - Negative-only rules leave Claude guessing what TO do
+
+**After this pass, every remaining line should be: specific, verifiable, project-unique, and load-bearing.**
+
+When running `/xforge analyze`, output the classification for every line:
+```
+Line 12: "Always use repository pattern" → VAGUE — rewrite with specific paths
+Line 15: "Run ruff check before commit" → LOAD-BEARING — keep
+Line 23: "Write clean code" → GENERIC — remove (Claude already does this)
+Line 31: "All PDF uploads must pass redaction pipeline" → PROTECTED — keep (domain-critical)
+```
+
 ## Phase 3: Generate / Rewrite CLAUDE.md
 
-IMPORTANT: The generated CLAUDE.md MUST be under 80 lines. Every line must pass this test: **"Would removing this cause Claude to make a wrong decision it couldn't recover from by reading the code?"** If no, cut it.
+IMPORTANT: The generated CLAUDE.md MUST be under 80 lines for simple projects. Every line must pass this test: **"Would removing this cause Claude to make a wrong decision it couldn't recover from by reading the code?"** If no, cut it.
 
 ### Mandatory Sections (in this order — primacy matters)
 
@@ -451,7 +503,7 @@ Before suggesting ANY removal or consolidation, classify every rule into one of 
 - Data governance / single source of truth rules (table mappings, canonical storage locations)
 - Encryption / PHI / PII handling rules (tier architecture, anonymization pipelines)
 - Medical / legal / compliance requirements
-- Specific function/module names that MUST be called (`resolve_ollama_model()`, `assert_safe()`)
+- Specific function/module names that MUST be called (project-specific required APIs, validation gates)
 - Safety-critical "NEVER do X" rules with known consequences
 - Cross-platform parity requirements
 - Architecture decisions that prevent data loss
@@ -532,11 +584,11 @@ IMPORTANT: Only add `paths:` frontmatter to rules that are truly domain-scoped. 
 
 ### The Progressive Disclosure Pattern
 
-For projects with extensive documentation (like HealthBot's `docs/claude/` folder):
+For projects with extensive documentation in separate files:
 
 ```markdown
 ## References (in root CLAUDE.md)
-> Detailed docs: [Installation](docs/claude/INSTALLATION.md) · [Commands](docs/claude/COMMANDS.md) · [Architecture](docs/claude/ARCHITECTURE.md) · [Reference](docs/claude/REFERENCE.md)
+> Detailed docs: [Installation](docs/INSTALLATION.md) · [Commands](docs/COMMANDS.md) · [Architecture](docs/ARCHITECTURE.md)
 
 IMPORTANT: Before starting any task, identify which docs above are relevant and read them first.
 ```
