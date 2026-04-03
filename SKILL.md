@@ -58,22 +58,21 @@ Line 25: "Use the repo pattern" → VAGUE (rewrite with paths)
 Run `/xforge` to auto-fix (backs up your file first).
 ```
 
-## Phase 0: Mandatory Backup (ALWAYS — before ANY change)
+## Phase 0: Mandatory Backup (ONLY for `/xforge` and `/xforge new` — SKIP for `/xforge score`)
 
-Before touching ANY existing CLAUDE.md or .claude/rules/ file, ALWAYS create a timestamped backup:
+**SKIP THIS PHASE ENTIRELY for `/xforge score`.** Score is read-only — no backups needed, no file writes, no permission prompts.
 
-```bash
-# Backup root CLAUDE.md
-!`cp CLAUDE.md "CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null`
-# Backup .claude/CLAUDE.md if it exists
-!`cp .claude/CLAUDE.md ".claude/CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null`
-# Backup all rules files
-!`tar czf ".claude/rules-backup-$(date +%Y%m%d-%H%M%S).tar.gz" .claude/rules/ 2>/dev/null`
+For `/xforge` and `/xforge new` only — before touching ANY existing CLAUDE.md or .claude/rules/ file, create a timestamped backup by running these Bash commands:
+
+```
+cp CLAUDE.md "CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null
+cp .claude/CLAUDE.md ".claude/CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)" 2>/dev/null
+tar czf ".claude/rules-backup-$(date +%Y%m%d-%H%M%S).tar.gz" .claude/rules/ 2>/dev/null
 ```
 
-Tell the user: "Backed up your existing files. If anything goes wrong, your originals are preserved with timestamps. You can always restore."
+Tell the user: "Backed up your existing files. If anything goes wrong, your originals are preserved with timestamps."
 
-NEVER skip this step. NEVER overwrite without backup. This is non-negotiable.
+NEVER skip this step when making changes. NEVER overwrite without backup.
 
 ### Do No Harm Principle
 
@@ -90,30 +89,14 @@ If the original CLAUDE.md is already high-quality (grade A or B), recommend targ
 
 ## Phase 1: Project Discovery
 
-Scan the project to understand it before writing a single rule:
+Scan the project to understand it before writing a single rule. Use the Read, Glob, Grep, and Bash tools to discover:
 
-```bash
-# Detect language and framework
-!`ls package.json Cargo.toml go.mod pyproject.toml setup.py requirements.txt Makefile Gemfile build.gradle pom.xml 2>/dev/null`
-
-# Detect build/test/lint commands
-!`cat package.json 2>/dev/null | grep -A 20 '"scripts"'`
-!`cat Makefile 2>/dev/null | grep -E '^[a-zA-Z_-]+:' | head -20`
-!`cat pyproject.toml 2>/dev/null | head -40`
-
-# Detect existing CLAUDE.md and rules
-!`cat CLAUDE.md 2>/dev/null; cat .claude/CLAUDE.md 2>/dev/null; ls .claude/rules/ 2>/dev/null`
-
-# Detect project structure
-!`find . -maxdepth 2 -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.swift" \) | head -30`
-
-# Detect test framework
-!`ls tests/ test/ __tests__/ spec/ *_test.go **/*.test.ts **/*.spec.ts 2>/dev/null | head -10`
-
-# Check git setup
-!`git remote -v 2>/dev/null | head -2`
-!`git log --oneline -5 2>/dev/null`
-```
+1. **Language and framework** — look for package.json, Cargo.toml, go.mod, pyproject.toml, setup.py, requirements.txt, Makefile, Gemfile, build.gradle, pom.xml
+2. **Build/test/lint commands** — read the scripts section of package.json, Makefile targets, pyproject.toml tool configs
+3. **Existing CLAUDE.md and rules** — read CLAUDE.md, .claude/CLAUDE.md, list .claude/rules/
+4. **Project structure** — glob for source files to understand the stack (*.ts, *.py, *.go, *.rs, etc.)
+5. **Test framework** — look for tests/, test/, __tests__/, spec/ directories
+6. **Git setup** — check remote and recent commit history
 
 ## Phase 2: Audit Existing CLAUDE.md (if present)
 
