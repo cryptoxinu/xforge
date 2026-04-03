@@ -15,12 +15,13 @@ Your CLAUDE.md is either:
 
 | Command | Changes Files? | What It Does |
 |---|---|---|
-| `/xforge score` | No | Quick health check — grade (A-F), top 3 issues, what to run next |
-| `/xforge audit` | No | Detailed 8-criteria breakdown with per-category scores |
-| `/xforge analyze` | No | Deep line-by-line classification: LOAD-BEARING / VAGUE / GENERIC / PROTECTED |
-| `/xforge` | Yes (backs up first) | Full pipeline — backup, audit, grade-based improve/generate, present diff |
+| `/xforge score` | No | Full health check — grade (A-F), 8-criteria breakdown, line-by-line classification, recommendations |
+| `/xforge` | Yes (backs up first) | Full pipeline — backup, score, grade-based improve/generate, present diff for approval |
 | `/xforge new` | Yes (backs up first) | Generate fresh CLAUDE.md from scratch for current project |
-| `/xforge improve` | Yes (backs up first) | Improve your `~/.claude/CLAUDE.md` (personal defaults across all projects) |
+
+3 commands. No confusion. `/xforge score` to check, `/xforge` to fix, `/xforge new` to start fresh.
+
+When run outside a git repo or when no project CLAUDE.md exists, xforge automatically targets `~/.claude/CLAUDE.md` instead.
 
 ## Safety Guarantees
 

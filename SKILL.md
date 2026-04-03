@@ -10,17 +10,16 @@ Forge battle-tested CLAUDE.md files that actually get followed. Based on researc
 
 ## When to Activate
 
-- `/xforge` — full pipeline: backup → audit → improve/generate (always backs up first)
-- `/xforge score` — quick health check: grade (A-F), top 3 issues, what command to run next. Fast, friendly, no changes
-- `/xforge analyze` — deep read-only analysis: score + line-by-line classification + detailed recommendations. Changes NOTHING
-- `/xforge new` — generate fresh CLAUDE.md for current project from scratch
-- `/xforge audit` — detailed 8-criteria breakdown with scores, no changes
-- `/xforge improve` — improve `~/.claude/CLAUDE.md`
+- `/xforge` — full pipeline: backup → score → grade-based improve/generate → present diff for approval (always backs up first)
+- `/xforge score` — read-only health check: grade (A-F), 8-criteria breakdown, line-by-line classification, recommendations. Changes NOTHING
+- `/xforge new` — generate fresh CLAUDE.md from scratch for current project
 - When user says "improve my claude md", "fix my claude.md", "my claude.md sucks", "claude keeps ignoring rules"
+
+**Auto-detection**: When run outside a git repo or when no project CLAUDE.md exists, xforge automatically targets `~/.claude/CLAUDE.md` (your personal defaults) instead. No separate command needed.
 
 ### `/xforge score` Output Format
 
-This is the quick, friendly command. Output exactly this format:
+This is the read-only command. Shows everything you need to decide whether to run `/xforge`. Output exactly this format:
 
 ```
 ## CLAUDE.md Health Check
@@ -28,20 +27,36 @@ This is the quick, friendly command. Output exactly this format:
 **Project**: [name] | **Stack**: [detected] | **Lines**: [count]
 **Score**: [X/80] — **Grade [A-F]**
 
-### Top Issues
-1. [Most impactful issue — 1 sentence]
-2. [Second issue — 1 sentence]
-3. [Third issue — 1 sentence]
+### 8-Criteria Breakdown
+| Criteria | Score | Notes |
+|---|---|---|
+| Conciseness | X/10 | [1-line note] |
+| Verification Commands | X/10 | ... |
+| Anti-Slop Rules | X/10 | ... |
+| Plan Enforcement | X/10 | ... |
+| Specificity | X/10 | ... |
+| No Redundancy | X/10 | ... |
+| Positive Framing | X/10 | ... |
+| Architecture Clarity | X/10 | ... |
+
+### Line-by-Line Classification
+[For each rule in the file:]
+Line 5: "All endpoints must validate..." → LOAD-BEARING (keep)
+Line 12: "Write clean code" → GENERIC (remove)
+Line 18: "NEVER store plaintext PHI" → PROTECTED (never touch)
+Line 25: "Use the repo pattern" → VAGUE (rewrite with paths)
+
+### Top 3 Issues
+1. [Most impactful — 1 sentence]
+2. [Second — 1 sentence]
+3. [Third — 1 sentence]
 
 ### What's Working
 - [1-2 things the file does well]
 
 ### Next Step
-- Run `/xforge analyze` for a detailed line-by-line breakdown
-- Run `/xforge` to auto-fix (backs up your file first)
+Run `/xforge` to auto-fix (backs up your file first).
 ```
-
-Keep it SHORT. This is the "how's my file doing?" command, not a deep dive.
 
 ## Phase 0: Mandatory Backup (ALWAYS — before ANY change)
 
@@ -164,7 +179,7 @@ This decision MUST be followed — it prevents xforge from making things worse:
   - Scan old file for any project-specific knowledge worth saving
   - If any found, incorporate into the new file
 
-**For `/xforge analyze`**: Skip Phases 0, 3, 4, 5, and all writes. Only run Phases 1, 2, and 2.5. Output the score, classification table, and recommendations — change NOTHING.
+**For `/xforge score`**: Skip Phases 0, 3, 4, 5, and all writes. Only run Phases 1, 2, and 2.5. Output the full score report (8-criteria + line classification + recommendations) — change NOTHING.
 
 ## Phase 2.5: Make Every Line Load-Bearing (Improve Existing)
 
@@ -192,7 +207,7 @@ When improving an existing CLAUDE.md (not generating from scratch), the goal is 
 
 **After this pass, every remaining line should be: specific, verifiable, project-unique, and load-bearing.**
 
-When running `/xforge analyze`, output the classification for every line:
+When running `/xforge score`, include the classification for every line in the output:
 ```
 Line 12: "Always use repository pattern" → VAGUE — rewrite with specific paths
 Line 15: "Run ruff check before commit" → LOAD-BEARING — keep
@@ -742,7 +757,7 @@ Present results as:
 ### Next Steps
 1. Review the generated CLAUDE.md — every line should feel necessary
 2. Say "write it" to apply all files
-3. Run `/xforge audit` monthly to check for bloat
+3. Run `/xforge score` monthly to check for bloat
 4. After corrections: "update CLAUDE.md so you don't make that mistake again"
 5. For parallel work: always use `claude --worktree` to isolate sessions
 6. The file compounds in value over time — but only if you keep it lean
