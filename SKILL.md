@@ -428,45 +428,120 @@ Additionally, recommend a monthly CLAUDE.md review prompt:
 Audit prompt: "Review this CLAUDE.md. For each line, answer: (1) Did Claude violate this in the last 5 sessions? (2) Would Claude make this mistake without the rule? If both answers are no, the rule is dead weight — cut it."
 ```
 
-### The 80-Line Budget Explained
+### The Budget Is Flexible — But Smart
 
-Tell the user:
+The 80-line target is for GENERIC projects. **Domain-critical projects (medical, security, financial, legal) legitimately need more.** The goal is not arbitrary line-cutting — it's ensuring every line gets followed.
 
-> **Why 80 lines?** Claude Code's system prompt already consumes ~50 of the ~150-200 instruction slots frontier models reliably follow. Your CLAUDE.md gets ~100-150 slots. At 80 lines, each rule gets strong attention. At 150+ lines, Claude starts uniformly ignoring rules — not selectively, UNIFORMLY. A 50-line file that gets 95% followed beats a 200-line file that gets 60% followed.
+**The real rule: keep the ROOT CLAUDE.md as lean as possible, and use `.claude/rules/` with path scoping for domain-specific overflow.**
 
-### Modular Rules for Overflow
+| Project Type | Root CLAUDE.md | .claude/rules/ | Total |
+|---|---|---|---|
+| Simple app | ~50-80 lines | 0-2 files | ~80 lines |
+| Medium project | ~60-80 lines | 3-5 scoped files | ~200 lines |
+| Complex domain (medical, finance) | ~80-100 lines | 5-10+ scoped files | 300+ lines OK |
 
-When a project genuinely needs more than 80 lines of rules, use `.claude/rules/` with path scoping:
+The key insight: path-scoped rules only load when Claude works in matching directories, so they don't compete for attention with the root file.
+
+### NEVER-PRUNE Classification (CRITICAL)
+
+Before suggesting ANY removal or consolidation, classify every rule into one of these categories:
+
+**PROTECTED (never remove, never consolidate, never weaken):**
+- Security invariants ("NEVER store plaintext PHI", "ALL gates deterministic")
+- Data governance / single source of truth rules (table mappings, canonical storage locations)
+- Encryption / PHI / PII handling rules (tier architecture, anonymization pipelines)
+- Medical / legal / compliance requirements
+- Specific function/module names that MUST be called (`resolve_ollama_model()`, `assert_safe()`)
+- Safety-critical "NEVER do X" rules with known consequences
+- Cross-platform parity requirements
+- Architecture decisions that prevent data loss
+
+**MOVABLE (safe to relocate to `.claude/rules/` but never delete):**
+- Module-specific rules (PDF pipeline rules → `.claude/rules/pdf-pipeline.md`)
+- Background task/scheduler rules → `.claude/rules/scheduler.md`
+- LLM/model routing rules → `.claude/rules/llm-routing.md`
+- Test-specific conventions → `.claude/rules/testing.md`
+
+**CONSOLIDATABLE (safe to merge similar rules into tighter versions):**
+- Multiple rules saying the same thing differently
+- Rules that overlap with other rules
+- Verbose explanations that can be tightened without losing meaning
+
+**PRUNABLE (safe to remove entirely):**
+- Generic advice Claude follows without the rule
+- Information Claude can discover by reading code
+- Stale references to deleted files/functions (verify first!)
+- Formatting rules that belong in linter config
+- Personality instructions
+
+### Smart Migration for Large CLAUDE.md Files
+
+When a project has a large CLAUDE.md (100+ lines) that contains critical domain knowledge:
+
+**Step 1: Classify every section** using the NEVER-PRUNE categories above
+
+**Step 2: Keep in root CLAUDE.md** — PROTECTED rules only, plus:
+- Product vision (1-3 lines)
+- Design priorities (3-5 lines)
+- Verification commands
+- Cross-cutting rules that apply everywhere
+- "What NOT to do" safety rules
+- Isolation rule
+
+**Step 3: Migrate MOVABLE rules** to path-scoped `.claude/rules/` files:
 
 ```markdown
-<!-- .claude/rules/database.md -->
+<!-- .claude/rules/security.md -->
 ---
 paths:
+  - src/security/**
+  - src/ingest/**
+  - src/llm/**
+---
+## Security Invariants
+[Relocated security rules — COMPLETE, nothing removed]
+```
+
+```markdown
+<!-- .claude/rules/data-governance.md -->
+---
+paths:
+  - src/data/**
   - src/db/**
-  - migrations/**
-  - src/models/**
+  - src/reasoning/**
 ---
-## Database Rules
-- Always use parameterized queries, never string interpolation
-- Migrations must be reversible (include down migration)
-- Never drop columns in production — mark deprecated, remove in next release
+## Data Governance
+[Relocated data rules — COMPLETE, nothing removed]
 ```
+
+**Step 4: Create reference docs** for detailed knowledge:
 
 ```markdown
-<!-- .claude/rules/frontend.md -->
----
-paths:
-  - src/components/**
-  - src/pages/**
-  - src/app/**
----
-## Frontend Rules
-- All components must handle loading, error, and empty states
-- No inline styles — use the project's styling system
-- Accessible by default: semantic HTML, aria labels, keyboard navigation
+## References (in root CLAUDE.md)
+- For PDF pipeline rules: see `.claude/rules/pdf-pipeline.md`
+- For scheduler/task rules: see `.claude/rules/scheduler.md`
+- For LLM model routing: see `.claude/rules/llm-routing.md`
+- For architecture details: see `docs/claude/ARCHITECTURE.md`
 ```
 
-These load ONLY when Claude is working in matching directories, keeping the active instruction count low.
+**Step 5: VERIFY nothing was lost** — diff the original file against the sum of all new files. Every original line must exist somewhere. Present the diff to the user for approval.
+
+### Rules WITHOUT paths: frontmatter load EVERY session
+
+IMPORTANT: Only add `paths:` frontmatter to rules that are truly domain-scoped. Rules without `paths:` load globally with the same priority as CLAUDE.md. For critical cross-cutting rules (security, data governance), you may WANT them to load globally — just put them in `.claude/rules/` without `paths:` to reduce root file size while keeping global visibility.
+
+### The Progressive Disclosure Pattern
+
+For projects with extensive documentation (like HealthBot's `docs/claude/` folder):
+
+```markdown
+## References (in root CLAUDE.md)
+> Detailed docs: [Installation](docs/claude/INSTALLATION.md) · [Commands](docs/claude/COMMANDS.md) · [Architecture](docs/claude/ARCHITECTURE.md) · [Reference](docs/claude/REFERENCE.md)
+
+IMPORTANT: Before starting any task, identify which docs above are relevant and read them first.
+```
+
+This costs ~2 lines in the root file but gives Claude access to thousands of lines of context ON DEMAND. The "IMPORTANT" keyword ensures Claude actually reads the relevant docs before working.
 
 ## Phase 11: Settings.json Recommendations
 
@@ -553,7 +628,7 @@ Present results as:
 ### Next Steps
 1. Review the generated CLAUDE.md — every line should feel necessary
 2. Say "write it" to apply all files
-3. Run `/forge-claude-md audit` monthly to check for bloat
+3. Run `/xforge audit` monthly to check for bloat
 4. After corrections: "update CLAUDE.md so you don't make that mistake again"
 5. For parallel work: always use `claude --worktree` to isolate sessions
 6. The file compounds in value over time — but only if you keep it lean
@@ -577,9 +652,11 @@ Present results as:
 | Multi-terminal clobbers work | No git safety rules | Git safety rules + worktree isolation |
 | Deletes good un-wired code | Can't distinguish WIP from dead code | "Unreferenced ≠ dead. Ask if recent" |
 | Keeps actual dead code | No cleanup requirement | "Clean up what you changed. Separate commits" |
-| CLAUDE.md gets ignored | File too long, instructions diluted | 80-line budget + monthly audit + graduated rules |
+| CLAUDE.md gets ignored | File too long, instructions diluted | Smart budget + monthly audit + graduated rules |
 | New features don't match codebase | No exploration before writing | "Trace one similar feature e2e before building" |
 | Code written but not wired | No caller requirement | "Every function must have a caller" |
+| Pruning destroys critical rules | No rule classification before pruning | NEVER-PRUNE classification (PROTECTED/MOVABLE/PRUNABLE) |
+| Complex project needs 200+ lines | One-size-fits-all line limit | Smart migration to .claude/rules/ with path scoping |
 
 ## References for Deep Dives
 
