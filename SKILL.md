@@ -15,7 +15,7 @@ Forge battle-tested CLAUDE.md files that actually get followed. Based on researc
 - `/xforge analyze` — deep read-only analysis: score + line-by-line classification + detailed recommendations. Changes NOTHING
 - `/xforge new` — generate fresh CLAUDE.md for current project from scratch
 - `/xforge audit` — detailed 8-criteria breakdown with scores, no changes
-- `/xforge global` — improve `~/.claude/CLAUDE.md`
+- `/xforge improve` — improve `~/.claude/CLAUDE.md`
 - When user says "improve my claude md", "fix my claude.md", "my claude.md sucks", "claude keeps ignoring rules"
 
 ### `/xforge score` Output Format
