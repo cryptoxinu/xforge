@@ -10,12 +10,38 @@ Forge battle-tested CLAUDE.md files that actually get followed. Based on researc
 
 ## When to Activate
 
-- `/xforge` — audit + improve existing CLAUDE.md in current project (always backs up first)
-- `/xforge analyze` — read-only analysis: score, classify every rule, recommend improvements — changes NOTHING
+- `/xforge` — full pipeline: backup → audit → improve/generate (always backs up first)
+- `/xforge score` — quick health check: grade (A-F), top 3 issues, what command to run next. Fast, friendly, no changes
+- `/xforge analyze` — deep read-only analysis: score + line-by-line classification + detailed recommendations. Changes NOTHING
 - `/xforge new` — generate fresh CLAUDE.md for current project from scratch
-- `/xforge audit` — score-only mode with grade (A-F), no changes
+- `/xforge audit` — detailed 8-criteria breakdown with scores, no changes
 - `/xforge global` — improve `~/.claude/CLAUDE.md`
 - When user says "improve my claude md", "fix my claude.md", "my claude.md sucks", "claude keeps ignoring rules"
+
+### `/xforge score` Output Format
+
+This is the quick, friendly command. Output exactly this format:
+
+```
+## CLAUDE.md Health Check
+
+**Project**: [name] | **Stack**: [detected] | **Lines**: [count]
+**Score**: [X/80] — **Grade [A-F]**
+
+### Top Issues
+1. [Most impactful issue — 1 sentence]
+2. [Second issue — 1 sentence]
+3. [Third issue — 1 sentence]
+
+### What's Working
+- [1-2 things the file does well]
+
+### Next Step
+- Run `/xforge analyze` for a detailed line-by-line breakdown
+- Run `/xforge` to auto-fix (backs up your file first)
+```
+
+Keep it SHORT. This is the "how's my file doing?" command, not a deep dive.
 
 ## Phase 0: Mandatory Backup (ALWAYS — before ANY change)
 
@@ -362,8 +388,6 @@ CLAUDE.md rules are advisory (~80% compliance that degrades with file length). F
 
 Explain: "CLAUDE.md rules can be ignored under context pressure. Hooks are deterministic — 100% enforcement. I recommend hooks for your most critical rules."
 
-## Key Principles This Skill Enforces (Quick Reference)
-
 ## Phase 6: Project Isolation Rules
 
 ### Problem: Claude modifies files in OTHER projects
@@ -393,16 +417,16 @@ Additionally, recommend these settings in `.claude/settings.json`:
 }
 ```
 
-And for the user's global `~/.claude/settings.json`, recommend:
+And for the user's global `~/.claude/settings.json`, recommend deny rules for common sensitive directories (adjust paths for their OS):
 
 ```json
 {
   "permissions": {
     "deny": [
-      "Edit(/Users/*/Desktop/**)",
-      "Edit(/Users/*/Documents/**)",
-      "Write(/Users/*/Desktop/**)",
-      "Write(/Users/*/Documents/**)"
+      "Edit(~/Desktop/**)",
+      "Edit(~/Documents/**)",
+      "Write(~/Desktop/**)",
+      "Write(~/Documents/**)"
     ]
   }
 }
@@ -704,7 +728,7 @@ Present results as:
 [If existing file found, list specific issues by category]
 
 ### Generated CLAUDE.md
-[The complete file, ready to write — MUST be under 80 lines]
+[The complete file, ready to write — sized appropriately for project complexity]
 
 ### Scoped Rules (if needed)
 [Any .claude/rules/*.md files for domain-specific overflow]
