@@ -185,7 +185,8 @@ YOU ARE FORBIDDEN from reporting a task as complete until all 4 pass with zero e
 - Fix root causes, not symptoms. If a display bug tempts you to duplicate state, you're solving the wrong problem
 - Before editing ANY file: re-read it first. After editing: read it again to confirm the change applied. The Edit tool fails silently on stale context
 - After 10+ messages in a conversation: MUST re-read files before editing. Context decay is real
-- No function > 50 lines. No file > 300 lines (split if larger)
+- Prefer functions under 50 lines and files under 300 lines — but these are GUIDELINES, not hard limits. Complex logic that is clearer as one longer function stays as one function. Never split or simplify working code just to hit a line count
+- NEVER truncate, stub out, or "simplify" an implementation because it is getting long. If the task requires 500 lines, write 500 lines. Saying "this is getting complex, let me simplify" when the complexity is inherent to the problem is a DEFECT, not an improvement
 - When renaming anything: search for direct calls, type refs, string literals, dynamic imports, re-exports, test mocks. A single grep is never enough
 - Don't build for imaginary scenarios. If the solution handles hypothetical future needs nobody asked for, strip it back
 - Write code a human would write. No robotic comment blocks, no excessive section headers, no corporate descriptions of obvious things
@@ -297,49 +298,7 @@ CLAUDE.md rules are advisory (~80% compliance that degrades with file length). F
 
 Explain: "CLAUDE.md rules can be ignored under context pressure. Hooks are deterministic — 100% enforcement. I recommend hooks for your most critical rules."
 
-## Output Format
-
-Present results as:
-
-```
-## CLAUDE.md Forge Report
-
-### Project: [name]
-### Stack: [detected]
-### Existing CLAUDE.md: [found/not found]
-
-### Audit Score: [X/80] — Grade [A-F]
-[If existing file found, list specific issues]
-
-### Generated CLAUDE.md
-[The complete file, ready to write]
-
-### Recommended Hooks
-[Hook configuration if applicable]
-
-### Next Steps
-1. Review the generated CLAUDE.md
-2. Say "write it" to apply
-3. After your next session with Claude: if it makes a mistake, say "update CLAUDE.md so you don't make that mistake again"
-4. Repeat. The file compounds in value over time.
-```
-
-## Key Principles This Skill Enforces
-
-These are the root causes of every problem this skill was built to solve:
-
-| Problem | Root Cause | Rule That Fixes It |
-|---|---|---|
-| Claude veers off plan | No separation between plan and build | "Plan ONLY — no code until approved" |
-| Half-assed implementations | Default bias toward "simplest approach" | Senior Dev Override in preamble |
-| Bandaid fixes | No root-cause requirement | "Fix root causes, not symptoms" |
-| Needs immediate refactoring | No verification before "done" | Forced verification gate |
-| Scope creep/reduction | No phased execution | "Max 5 files per phase, verify between" |
-| Broken after 10+ messages | Context decay | "Re-read files before editing after 10+ messages" |
-| Silent edit failures | Stale context in Edit tool | "Re-read before AND after every edit" |
-| Tests pass but code is wrong | Weak assertions, test weakening | "NEVER weaken a test. Strong assertions only" |
-| Goes in circles on bugs | No escalation rule | "2 failed attempts → stop, rethink, explain what's wrong" |
-| Ignores existing patterns | Doesn't read before writing | "Follow References, Not Descriptions" |
+## Key Principles This Skill Enforces (Quick Reference)
 
 ## Phase 6: Project Isolation Rules
 
@@ -709,6 +668,8 @@ Present results as:
 | Code written but not wired | No caller requirement | "Every function must have a caller" |
 | Pruning destroys critical rules | No rule classification before pruning | NEVER-PRUNE classification (PROTECTED/MOVABLE/PRUNABLE) |
 | Complex project needs 200+ lines | One-size-fits-all line limit | Smart migration to .claude/rules/ with path scoping |
+| Over-simplifies complex code | Hard line limits cause premature splitting | Soft guidelines: "prefer under 50/300 but NEVER truncate to hit a number" |
+| Says "too complex, simplifying" | No anti-truncation rule | "If task requires 500 lines, write 500 lines. Inherent complexity is not a defect" |
 
 ## References for Deep Dives
 
