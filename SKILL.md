@@ -298,7 +298,7 @@ YOU MUST ONLY modify files within this project directory. NEVER touch files in o
 After ANY correction: ask yourself what rule would prevent this category of mistake in the future. Propose updating this CLAUDE.md. Keep iterating until the mistake rate drops to zero.
 
 ## Gotchas
-<!-- Add project-specific corrections below as they happen -->
+[Add project-specific corrections below as they happen]
 ```
 
 ---
@@ -351,7 +351,7 @@ NEVER add these to the generated CLAUDE.md:
 If the project has domain-specific patterns that would bloat the root CLAUDE.md beyond 80 lines, create scoped rule files in `.claude/rules/`:
 
 ```markdown
-<!-- .claude/rules/api-conventions.md -->
+# .claude/rules/api-conventions.md
 ---
 paths:
   - src/api/**
@@ -603,7 +603,7 @@ When a project has a large CLAUDE.md (100+ lines) that contains critical domain 
 **Step 3: Migrate MOVABLE rules** to path-scoped `.claude/rules/` files:
 
 ```markdown
-<!-- .claude/rules/security.md -->
+# .claude/rules/security.md
 ---
 paths:
   - src/security/**
@@ -615,7 +615,7 @@ paths:
 ```
 
 ```markdown
-<!-- .claude/rules/data-governance.md -->
+# .claude/rules/data-governance.md
 ---
 paths:
   - src/data/**
