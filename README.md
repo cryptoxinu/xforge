@@ -1,11 +1,4 @@
-```
-                 ___
-     __  _____  / _/___  _________ ____
-    / / / / _ \/ /_/ __ \/ ___/ __ `/ _ \
-   / /_/ /  __/ __/ /_/ / /  / /_/ /  __/
-   \__,_/\___/_/  \____/_/   \__, /\___/
-                            /____/
-```
+# xforge
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-skill-6B4FBB.svg)](https://code.claude.com/docs/en/skills)
@@ -22,11 +15,23 @@ Most CLAUDE.md files are either bloated junk drawers that Claude ignores, or emp
 xforge is a [Claude Code skill](https://code.claude.com/docs/en/skills). You install it once, then run `/xforge` inside any Claude Code session. It:
 
 1. **Scans your project** — detects stack, build commands, test runners, existing rules
-2. **Scores your CLAUDE.md** — grades A through F across 8 criteria, classifies every line
-3. **Generates a replacement** — lean root file + scoped rules + hooks + settings, all wired up
-4. **Installs everything** — CLAUDE.md, `.claude/rules/`, `.claude/settings.json` hooks, permission deny rules — one "write it" and you're done
+2. **Audits for staleness** — validates file paths, commands, and patterns against the live codebase
+3. **Scores your CLAUDE.md** — grades A through F across 10 criteria, classifies every line, recommends where each rule belongs
+4. **Generates a replacement** — lean root file + scoped rules + hooks + settings, all wired up
+5. **Installs everything** — CLAUDE.md, `.claude/rules/`, `.claude/settings.json` hooks, permission deny rules, sandbox config, staleness prevention — one "write it" and you're done
 
 It's not a linter. It's not a template. It's a system that decides where every instruction belongs and puts it there.
+
+### What's new in v2
+
+- **Staleness detection** — validates that file paths, build commands, and code patterns in your CLAUDE.md still exist in the actual codebase. Flags dead references before they mislead Claude
+- **Staleness prevention hook** — installs a SessionStart hook that warns when your CLAUDE.md drifts from the codebase (commit distance + config file changes)
+- **10-criteria scoring** (was 8) — added Freshness and Layer Architecture criteria
+- **Clarifying questions** — for complex domain projects, xforge asks about protected invariants, non-obvious architecture, and repeated Claude mistakes before generating
+- **Sandbox configuration** — installs sandbox profiles (strict or permissive) with clear explanation of what each setting does
+- **Multi-layer architecture for complex systems** — explicit guidance for projects needing 300+ lines of total instruction across root + rules + skills + hooks
+- **Compaction safety** — generated CLAUDE.md includes instructions to preserve critical state during context compaction
+- **Violation-to-hook upgrade pattern** — detects rules Claude repeatedly ignores and recommends converting them to deterministic hooks
 
 ## Why
 
@@ -42,9 +47,9 @@ xforge builds all four layers for you.
 ## Commands
 
 ```
-/xforge score   Read-only. Grade + breakdown + placement recommendations. Changes nothing.
-/xforge         Full pipeline. Backup → score → generate → install. Asks before writing.
-/xforge new     Fresh start. Generate everything from scratch for the current project.
+/xforge score   Read-only. Staleness audit + grade + 10-criteria breakdown + placement analysis. Changes nothing.
+/xforge         Full pipeline. Backup → staleness audit → score → generate → install. Asks before writing.
+/xforge new     Fresh start. Generate full instruction architecture from scratch for the current project.
 ```
 
 When there's no project CLAUDE.md, xforge targets `~/.claude/CLAUDE.md` instead.
@@ -63,6 +68,7 @@ your-project/
       deploy/SKILL.md                # Heavy deploy workflow — /deploy to invoke
     settings.json                    # Hooks + permissions + sandbox config
     hooks/
+      check-staleness.sh             # Warns on session start when CLAUDE.md drifts
       pre-push-check.sh             # Script-based hook for complex logic
 ```
 
@@ -90,23 +96,27 @@ your-project/
 
 **Claude invents new patterns** — Ignores existing codebase conventions and makes up its own. xforge generates rules that force Claude to read existing code and match patterns exactly.
 
+**Your CLAUDE.md is stale** — You wrote it 3 months and 200 commits ago. Build commands changed, files moved, patterns were refactored — but your CLAUDE.md still references the old world. xforge runs a staleness audit (validates paths, commands, and patterns against the live codebase) and installs a session-start hook that warns when drift is detected.
+
+**Complex domain, too much to fit** — Medical, finance, legal projects need 300+ lines of instruction but a single bloated file gets ignored. xforge builds a multi-layer architecture: lean root file + path-scoped rules (load only when relevant) + skills (load on demand) + hooks (deterministic enforcement). Total instruction surface can be 500+ lines without diluting the core rules.
+
 ## Install
 
 ### One-liner (pinned to a release)
 
 ```bash
 # Pin to a specific version for reproducibility
-XFORGE_REF="v1.0.0" bash <(curl -fsSL \
-  "https://raw.githubusercontent.com/cryptoxinu/xforge/v1.0.0/install.sh")
+XFORGE_REF="v2.0.0" bash <(curl -fsSL \
+  "https://raw.githubusercontent.com/cryptoxinu/xforge/v2.0.0/install.sh")
 ```
 
 ### With checksum verification
 
 ```bash
-XFORGE_REF="v1.0.0" \
+XFORGE_REF="v2.0.0" \
 XFORGE_SHA256="<expected-sha256>" \
 bash <(curl -fsSL \
-  "https://raw.githubusercontent.com/cryptoxinu/xforge/v1.0.0/install.sh")
+  "https://raw.githubusercontent.com/cryptoxinu/xforge/v2.0.0/install.sh")
 ```
 
 ### Manual
@@ -114,7 +124,7 @@ bash <(curl -fsSL \
 ```bash
 git clone https://github.com/cryptoxinu/xforge.git
 cd xforge
-git checkout v1.0.0
+git checkout v2.0.0
 ./install.sh
 ```
 

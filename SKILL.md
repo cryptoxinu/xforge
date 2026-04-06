@@ -1,7 +1,7 @@
 ---
 name: xforge
 description: "Xinu's ClaudeMD Fix — audit, score, improve, and generate battle-tested CLAUDE.md instruction architectures that enforce plan adherence, prevent bandaid fixes, and eliminate refactoring debt."
-origin: custom
+user-invocable: true
 ---
 
 # Xinu's ClaudeMD Fix
@@ -11,7 +11,7 @@ Design CLAUDE.md instruction architectures — not just files. Decides what belo
 ## When to Activate
 
 - `/xforge` — full pipeline: backup → score → grade-based improve/generate → present diff for approval
-- `/xforge score` — read-only health check: grade, 8-criteria breakdown, line-by-line classification, placement analysis. Changes NOTHING
+- `/xforge score` — read-only health check: grade, 10-criteria breakdown, staleness audit, line-by-line classification, placement analysis. Changes NOTHING
 - `/xforge new` — generate fresh CLAUDE.md instruction architecture from scratch
 - When user says "improve my claude md", "fix my claude.md", "my claude.md sucks", "claude keeps ignoring rules"
 
@@ -23,9 +23,13 @@ Design CLAUDE.md instruction architectures — not just files. Decides what belo
 ## CLAUDE.md Health Check
 
 **Project**: [name] | **Stack**: [detected] | **Lines**: [count]
-**Score**: [X/80] — **Grade [A-F]**
+**Score**: [X/100] — **Grade [A-F]**
+**Last updated**: [date, N commits ago] | **Staleness**: [FRESH / AGING / STALE]
 
-### 8-Criteria Breakdown
+### Staleness Report
+[Dead paths found, broken commands, stale references, config drift — or "All references validated"]
+
+### 10-Criteria Breakdown
 | Criteria | Score | Notes |
 |---|---|---|
 | Conciseness | X/10 | [1-line note] |
@@ -36,6 +40,8 @@ Design CLAUDE.md instruction architectures — not just files. Decides what belo
 | No Redundancy | X/10 | ... |
 | Positive Framing | X/10 | ... |
 | Architecture Clarity | X/10 | ... |
+| Freshness | X/10 | ... |
+| Layer Architecture | X/10 | ... |
 
 ### Line-by-Line Classification
 Line 5: "All endpoints must validate..." → LOAD-BEARING (keep) → ROOT
@@ -105,10 +111,22 @@ Scan the project before writing a single rule:
 5. **Test framework** — tests/, __tests__/, spec/ directories
 6. **Git setup** — remote, recent commits, branching pattern
 7. **Existing skills** — list .claude/skills/ to avoid duplicating workflows
+8. **CLAUDE.md age** — `git log -1 --format=%cr -- CLAUDE.md` and `git rev-list --count $(git log -1 --format=%H -- CLAUDE.md)..HEAD` to measure staleness (commits since last update)
+
+### Clarifying Questions
+
+For complex domain projects (medical, financial, legal, security-critical), xforge MUST ask before generating:
+
+1. **"What are your protected invariants?"** — rules that must NEVER be weakened (encryption schemes, compliance requirements, data governance, safety-critical constraints). These become PROTECTED classification
+2. **"Are there non-obvious architectural decisions?"** — things Claude would get wrong by reading the code alone (e.g., "we use two databases because X", "this module is intentionally duplicated for isolation")
+3. **"What mistakes has Claude made repeatedly?"** — the user's pain points are the most load-bearing rules. These go at the TOP and BOTTOM of the file (primacy + recency attention)
+4. **"Any commands or paths that recently changed?"** — catches the most common staleness: renamed scripts, moved directories, new build steps
+
+For simple projects, skip the questions and infer from code. The threshold: if Phase 1 discovers 3+ of (custom build pipeline, domain-specific data handling, multiple deployment targets, compliance requirements), ASK.
 
 ## Phase 2: Audit & Placement Analysis
 
-### Scoring Criteria (0-10 each, 80 max)
+### Scoring Criteria (0-10 each, 100 max)
 
 | Criteria | What to Check |
 |---|---|
@@ -120,6 +138,20 @@ Scan the project before writing a single rule:
 | **No Redundancy** | No rules Claude can infer from code? No duplicating linter territory? |
 | **Positive Framing** | Every "don't X" has a "do Y instead"? |
 | **Architecture Clarity** | Non-obvious patterns, gotchas, and decisions documented? |
+| **Freshness** | Do referenced file paths exist? Do build/test commands work? Has CLAUDE.md been updated within the last ~20 commits? No stale patterns from refactored code? |
+| **Layer Architecture** | Rules placed in the right layer? Root isn't a kitchen sink? Hooks for enforcement, skills for workflows, rules for scoping? |
+
+### Staleness Audit (run during EVERY score and forge)
+
+Before scoring quality, check if the CLAUDE.md is even talking about the current codebase:
+
+1. **Path validation** — extract file paths from CLAUDE.md (backtick paths, `@imports`, `src/...` references). Check each exists on disk. **Skip paths inside example/template blocks** — only validate paths that appear to reference THIS project's actual files (contain the project's real directory names, not generic examples like `src/api/**`). Flag dead paths as warnings, not errors — the user confirms
+2. **Command validation** — extract shell commands from Verification/build sections specifically (not all code blocks — many are templates). Verify the binary exists (`command -v`). For build/test/lint commands, attempt a dry-run if safe (e.g., `npx tsc --noEmit` is safe, `npm run deploy` is not)
+3. **Pattern validation** — if CLAUDE.md mentions specific functions, classes, or modules by name (not generic placeholders), grep for them. Flag references to code that no longer exists
+4. **Age check** — how many commits since CLAUDE.md was last modified? If >50 commits or >90 days: flag as STALE and warn prominently in the score report
+5. **Config drift** — compare package.json scripts, Makefile targets, or pyproject.toml tool sections against what CLAUDE.md documents. Flag mismatches
+
+**Staleness findings appear in the score report as a dedicated section**, before the 10-criteria breakdown. A file can score well on quality but still be dangerously stale.
 
 ### Placement Framework
 
@@ -140,7 +172,7 @@ Flag and fix these if found:
 
 - **Personality instructions** ("Act as a senior engineer") — wastes tokens, Claude has strong system directives
 - **Generic advice** ("Write clean code", "Use meaningful names") — obvious, wastes budget
-- **Stale `@imports`** — blind imports of large/changing files dilute context. But targeted `@imports` of stable docs are fine (architecture docs, API references, package manifests). Max import depth is 5 hops (official limit)
+- **Stale `@imports`** — blind imports like `@docs/file.md` pull entire files into every session, diluting context. Targeted `@imports` of stable docs are fine (architecture docs, API references, package manifests). For volatile docs, use "For X, see docs/Y.md" instead. Max import depth is 5 hops (official limit)
 - **Code snippets in CLAUDE.md** — go stale fast; use `file:line` references instead
 - **Formatting rules** — belong in .editorconfig/.eslintrc/.prettierrc, not CLAUDE.md
 - **Duplicate rules** — each rule in exactly one place
@@ -150,36 +182,36 @@ Flag and fix these if found:
 
 ### Quality Gate
 
-- **A (65-80)**: Production-grade, ship it
-- **B (50-64)**: Good foundation, minor improvements needed
-- **C (35-49)**: Mediocre, significant gaps — rewrite recommended
-- **D (20-34)**: More harm than good — delete and regenerate
+- **A (80-100)**: Production-grade, ship it
+- **B (60-79)**: Good foundation, minor improvements needed
+- **C (40-59)**: Mediocre, significant gaps — rewrite recommended
+- **D (20-39)**: More harm than good — delete and regenerate
 - **F (0-19)**: Actively hurting Claude — nuke from orbit
 
 ### Decision Point: What to Do Based on Grade
 
-**Grade A (65-80)** — DO NOT REWRITE. Only:
+**Grade A (80-100)** — DO NOT REWRITE. Only:
   - Add missing sections (e.g., no verification commands? Add them)
   - Tighten vague lines to be more specific
   - Suggest placement migration IF over ~150 lines
   - Present changes as a SHORT diff
 
-**Grade B (50-64)** — TARGETED IMPROVEMENTS only:
+**Grade B (60-79)** — TARGETED IMPROVEMENTS only:
   - Add missing mandatory sections
   - Sharpen vague rules with project-specific details from Phase 1
   - Do NOT remove or rewrite existing project-specific rules
   - Present as diff with clear before/after
 
-**Grade C (35-49)** — REWRITE RECOMMENDED but preserve project-specific rules:
+**Grade C (40-59)** — REWRITE RECOMMENDED but preserve project-specific rules:
   - Keep every PROTECTED and MOVABLE rule (per NEVER-PRUNE)
   - Restructure around mandatory sections
   - Fill gaps with stack-appropriate rules from Phase 1
 
-**Grade D/F (0-34)** — FULL REWRITE justified:
+**Grade D/F (0-39)** — FULL REWRITE justified:
   - Generate fresh using Phase 3 template
   - Scan old file for project-specific knowledge worth saving
 
-**For `/xforge score`**: Only run Phases 1, 2. Output the full report — change NOTHING.
+**For `/xforge score`**: Only run Phases 1, 2 (including staleness audit). Output the full report — change NOTHING.
 
 ### NEVER-PRUNE Classification
 
@@ -232,6 +264,16 @@ The root CLAUDE.md target depends on project complexity. The official Anthropic 
 
 **Hard warning**: if any single always-on file approaches ~200 lines, aggressively move content to rules/skills/hooks. Path-scoped rules only load when Claude works in matching directories, so they don't compete for attention with the root file.
 
+**For complex systems that need 300+ lines of total instruction**: this is fine — the limit is per-file, not total. A medical project might have:
+- Root CLAUDE.md (~120 lines): anti-slop, verification, planning, security invariants, project boundary
+- `.claude/rules/security.md` (no `paths:`, loads globally): encryption, PHI/PII, audit trail rules
+- `.claude/rules/api.md` (`paths: src/api/**`): endpoint conventions, validation, response format
+- `.claude/rules/data-pipeline.md` (`paths: src/ingest/**`): parsing, redaction, fail-closed rules
+- `.claude/skills/deploy/SKILL.md`: deployment workflow with verification gates
+- `.claude/skills/compliance-audit/SKILL.md`: periodic compliance review checklist
+
+This gives Claude ~120 lines always-on + domain rules only when working in matching directories + heavy workflows only when invoked. Total instruction surface can be 500+ lines without diluting the core rules.
+
 Every line must pass this test: **"Would removing this cause Claude to make a wrong decision it couldn't recover from by reading the code?"** If no, cut it or move it to a better layer.
 
 ### Mandatory Sections (adapted to project stack)
@@ -245,7 +287,7 @@ The generated CLAUDE.md MUST include ALL of these, adapted to the project:
 ```markdown
 # [Project Name]
 
-IMPORTANT: You have two failure modes and BOTH are defects.
+IMPORTANT: Your bias toward "avoid improvements beyond what was asked" and "try the simplest approach" causes you to produce bandaids and skeletons. Resist this. You have two failure modes and BOTH are defects:
 - Mode 1 — SKIPPING: dropping requirements, implementing skeletons, leaving TODOs, saying "you can add this later", doing 3 of 5 requested items. This is the MORE COMMON failure.
 - Mode 2 — BLOATING: adding unrequested features, unnecessary abstractions, speculative error handling, helper functions for one-time operations, docstrings on code you didn't write.
 Do EXACTLY what was asked. No more, no less. If the task is complex, the implementation is complex — do not simplify the TASK. Simplify the CODE that implements the full task. Fix root causes, not symptoms. No temporary fixes. No "simplified versions."
@@ -330,10 +372,12 @@ YOU MUST ONLY modify files within this project directory. NEVER touch files in o
 ## Wiring Verification (before claiming ANY feature works)
 - Prove the FULL path is connected: route registered → handler called → service invoked → data persisted → response returned
 - Check for: unregistered routes, unattached event handlers, unread config, swallowed errors, unrendered components, unscheduled jobs, missing middleware
+- After building any feature: actually CALL it. Hit the endpoint, trigger the event, click the button. If you can't test it, explain exactly what manual step is needed and why
 - NEVER say "now it supports X" unless you can show the code path where X actually executes end-to-end
 - Every new function must have a CALLER. Never write code that isn't wired into the system
 - NEVER leave TODO comments, placeholder functions, or "implement later" stubs. If you write it, finish it. If you can't finish it, say so explicitly — don't leave a skeleton and call it done
 - Before writing new code: trace at least one similar feature e2e to understand existing patterns. Match them EXACTLY — same directory structure, same naming conventions, same patterns. Do not invent a new pattern when the codebase already has one
+- For features touching 3+ files: use subagents to keep context clean. One agent per concern (e.g., one for backend, one for frontend, one for tests)
 
 ## Dead Code
 - Unreferenced code ≠ dead code. If recently written as part of current work, it's WIP — ask before deleting
@@ -352,8 +396,14 @@ After ANY correction:
 4. If adding a rule would push the root file past its budget: graduate the least-violated rule to `.claude/rules/`, consolidate similar rules, or remove a consistently-followed rule
 5. Rules that Claude violates MOST go at the TOP and BOTTOM (primacy + recency attention)
 
+## Context Safety
+When compacting or resuming a session, preserve: the full list of modified files, current test status, which plan phase you're in, and any unresolved questions. Losing this state causes duplicate work or missed steps.
+
 ## Gotchas
 [Add project-specific corrections below as they happen]
+
+## Maintenance
+Audit monthly: "For each line, answer: (1) Did Claude violate this in the last 5 sessions? (2) Would Claude make this mistake without the rule? If both answers are no, the rule is dead weight — cut it."
 ```
 
 ---
@@ -381,6 +431,11 @@ NEVER add these to the generated CLAUDE.md:
 - "Write clean code" or other generic platitudes
 - Personality/role instructions
 
+### Token-Saving Tips
+
+- **HTML comments** (`<!-- maintainer notes -->`) are stripped before context injection. Use them for human-readable annotations that don't waste tokens — section explanations, change history, review dates
+- **Use MUST/MUST NOT/SHOULD (RFC 2119)** — measurably increases compliance vs. "prefer" or "try to". "MUST use TypeScript strict mode" is followed; "Prefer TypeScript" is ignored
+
 ### The Progressive Disclosure Pattern
 
 For projects with extensive documentation:
@@ -393,6 +448,32 @@ IMPORTANT: Before starting any task, identify which docs above are relevant and 
 ```
 
 This costs ~2 lines but gives Claude access to thousands of lines ON DEMAND.
+
+### Monorepos and Subdirectory CLAUDE.md Files
+
+Anthropic supports CLAUDE.md files in subdirectories — they load when Claude works in that directory. For monorepos:
+
+```
+monorepo/
+  CLAUDE.md                    # Shared rules: git safety, project boundary, verification
+  packages/
+    frontend/
+      CLAUDE.md                # Frontend-specific: React patterns, component conventions
+    backend/
+      CLAUDE.md                # Backend-specific: API conventions, DB patterns
+    shared/
+      CLAUDE.md                # Shared library: export conventions, versioning
+```
+
+Each subdirectory CLAUDE.md inherits from the root. xforge should detect monorepo structure (multiple package.json files, workspaces config, or lerna.json) and offer to generate subdirectory CLAUDE.md files alongside the root. Keep the root file lean (shared rules only) and push package-specific rules into subdirectory files.
+
+For monorepos where some packages have irrelevant CLAUDE.md files, use `claudeMdExcludes` in settings to skip them:
+
+```json
+{
+  "claudeMdExcludes": ["packages/legacy/**", "vendor/**"]
+}
+```
 
 Targeted `@import` of stable docs (architecture decisions, API specs, package manifests) is good practice. Blind `@import` of large or frequently-changing files wastes context. The official import depth limit is 5 hops.
 
@@ -503,6 +584,8 @@ For non-trivial hook logic, prefer script files in `.claude/hooks/` over inline 
 
 ### Stop Hook — Completion Gate
 
+**Only install this hook when the project has a working test command.** During Phase 1, verify the test command actually runs. If there's no test suite, SKIP this hook and note in the output: "No Stop hook installed — no test suite detected. Add tests, then run `/xforge` again to enable the completion gate."
+
 ```json
 {
   "hooks": {
@@ -517,6 +600,8 @@ For non-trivial hook logic, prefer script files in `.claude/hooks/` over inline 
   }
 }
 ```
+
+Replace `[TEST_COMMAND]` with the actual detected test command (e.g., `pytest tests/ -q`, `npm test`, `go test ./...`). Never install with the placeholder.
 
 Note: capture the test command's exit code BEFORE piping — `cmd | tail` loses the original exit code.
 
@@ -554,6 +639,81 @@ Reference from settings: `"command": "bash .claude/hooks/pre-push-check.sh"`
 
 **Prompt hooks** send to Claude for yes/no evaluation — useful when richer reasoning is needed than inline shell can provide. **Agent hooks** spawn subagents with tool access (Read, Grep, Glob) for complex validation.
 
+### Violation-to-Hook Upgrade Pattern
+
+CLAUDE.md instructions are followed ~80% of the time. Hooks fire 100% of the time. When a rule is repeatedly violated despite being in CLAUDE.md, upgrade it:
+
+1. CLAUDE.md rule gets ignored 3+ times → convert to a hook
+2. "Always format before committing" → PostToolUse auto-format hook
+3. "Never push without approval" → PreToolUse git push gate
+4. "Run tests before claiming done" → Stop completion gate
+
+When running `/xforge` on an existing project, check the Gotchas section for patterns that indicate repeated violations — these are prime candidates for hook upgrades.
+
+### Staleness Prevention Hook
+
+Install a hook that warns when CLAUDE.md is drifting from the codebase. This fires at session start and checks two signals: commit distance and config file changes.
+
+```bash
+# .claude/hooks/check-staleness.sh
+#!/bin/bash
+set -euo pipefail
+cd "$CLAUDE_PROJECT_DIR"
+
+[ -f CLAUDE.md ] || exit 0
+[ -d .git ] || exit 0
+
+# How many commits since CLAUDE.md was last touched?
+LAST_HASH=$(git log -1 --format=%H -- CLAUDE.md 2>/dev/null || echo "")
+if [ -z "$LAST_HASH" ]; then
+  echo "Warning: CLAUDE.md is not tracked by git."
+  exit 0
+fi
+
+COMMITS_SINCE=$(git rev-list --count "${LAST_HASH}..HEAD" 2>/dev/null || echo "0")
+DAYS_SINCE=$(( ( $(date +%s) - $(git log -1 --format=%ct -- CLAUDE.md) ) / 86400 ))
+
+WARNINGS=""
+
+if [ "$COMMITS_SINCE" -gt 50 ]; then
+  WARNINGS="${WARNINGS}CLAUDE.md is ${COMMITS_SINCE} commits behind HEAD (last updated ${DAYS_SINCE} days ago). Run /xforge score to check for drift.\n"
+fi
+
+# Check if key config files changed since CLAUDE.md was last updated
+for CONFIG in package.json Makefile pyproject.toml Cargo.toml go.mod; do
+  if [ -f "$CONFIG" ]; then
+    CONFIG_CHANGED=$(git diff --name-only "$LAST_HASH"..HEAD -- "$CONFIG" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$CONFIG_CHANGED" -gt 0 ]; then
+      WARNINGS="${WARNINGS}${CONFIG} changed since CLAUDE.md was last updated — build/test commands may be stale.\n"
+    fi
+  fi
+done
+
+if [ -n "$WARNINGS" ]; then
+  printf "⚠ CLAUDE.md Staleness Warning:\n${WARNINGS}"
+fi
+```
+
+Reference from settings:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/hooks/check-staleness.sh",
+          "statusMessage": "Checking CLAUDE.md freshness..."
+        }]
+      }
+    ]
+  }
+}
+```
+
+This hook costs nothing at runtime (pure git queries, no AI calls) and catches the most common drift: build commands changed, dependencies updated, or the project evolved significantly while CLAUDE.md sat untouched.
+
 ## Phase 7: Install Settings & Security
 
 **xforge MUST install these settings, not just recommend them.** Same merge-and-diff approach as Phase 6 — read existing, merge, present diff, write on approval.
@@ -571,7 +731,8 @@ Merge these into `.claude/settings.json`:
       "Edit(../*)",
       "Write(../*)",
       "Read(.env)",
-      "Read(.env.*)",
+      "Read(.env.local)",
+      "Read(.env.production)",
       "Read(**/*.pem)",
       "Read(**/*credential*)",
       "Read(**/*secret*)"
@@ -579,6 +740,8 @@ Merge these into `.claude/settings.json`:
   }
 }
 ```
+
+Note: `.env.example` and `.env.sample` are intentionally NOT blocked — they contain placeholder values meant to be read. Only files with actual secrets (`.env`, `.env.local`, `.env.production`) are denied. If the project uses different `.env.*` naming, adjust the deny rules to match.
 
 ### Global Security Hardening
 
@@ -599,20 +762,37 @@ Offer to merge these into the user's `~/.claude/settings.json` (ask first — th
 
 ### Sandbox Configuration
 
+Choose the sandbox profile based on the project's needs:
+
+**Strict (recommended default for most projects):**
 ```json
 {
   "sandbox": {
     "enabled": true,
+    "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false
   }
 }
 ```
 
-Explain to the user:
-- **Sandbox mode** restricts Bash to the current directory (filesystem + network isolation). Reduces permission prompts by ~84% while increasing safety
-- **Permission deny rules** block Edit/Write/Read tools from reaching secrets and external paths
-- **Both layers together** give strong isolation
-- For serious hardening, also consider network isolation via the sandbox proxy
+**Permissive (for projects needing `npm install`, Docker, DB connections):**
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true
+  }
+}
+```
+
+Ask the user which profile fits. Explain:
+- **`enabled: true`** — Bash commands run inside the sandbox (filesystem + network isolation to project directory)
+- **`autoAllowBashIfSandboxed: true`** — sandboxed Bash commands are auto-approved without prompting. This is the key usability win — reduces permission prompts by ~84%
+- **`allowUnsandboxedCommands: false`** (strict) — no Bash command can escape the sandbox, ever. Safest, but blocks `npm install`, `docker build`, and anything needing network or writes outside the project
+- **`allowUnsandboxedCommands: true`** (permissive) — commands that need to escape the sandbox will prompt for approval. Good balance of safety and usability for active development
+- **Permission deny rules** are a SEPARATE layer — they block Edit/Write/Read tools from reaching secrets and external paths regardless of sandbox settings
+- For serious hardening, the sandbox also supports fine-grained `filesystem` and `network` sub-configs (allowed domains, write paths, socket access)
 
 ### Destructive Git Operations
 
@@ -654,7 +834,10 @@ NEVER claim "done" with untested paths. NEVER skip verification because "it shou
 ### Stack: [detected]
 ### Existing CLAUDE.md: [found/not found]
 
-### Audit Score: [X/80] — Grade [A-F]
+### Staleness: [FRESH/AGING/STALE — N commits since last update]
+[Dead paths, broken commands, config drift — or "All references current"]
+
+### Audit Score: [X/100] — Grade [A-F]
 [Specific issues by category + placement analysis]
 
 ### Generated CLAUDE.md
@@ -704,9 +887,13 @@ Say "write it" to apply ALL of the above — CLAUDE.md, rules, skills, settings,
 | Says "supports X" but X is broken | Anti-Silent-Failure: prove full path end-to-end |
 | Pruning destroys critical rules | NEVER-PRUNE classification before any removal |
 | Root file is kitchen sink | Placement framework: ROOT/RULE/SKILL/HOOK/LOCAL/PRUNE |
+| CLAUDE.md references dead code/paths | Staleness audit: validate paths, commands, and patterns against live codebase |
+| Build commands changed but CLAUDE.md didn't | Staleness prevention hook: warns on session start when config files drift |
+| Complex domain, don't know what to protect | Clarifying questions: ask about protected invariants, non-obvious architecture, repeated mistakes |
 
 ## References
 
+- **Instruction budget**: ~150-200 total instructions are reliably followed per session. Claude Code's built-in instructions use ~50 of those slots — your CLAUDE.md gets ~100-150 effective slots. Every line past this competes for attention (ETH Zurich: verbose context files reduce agent performance while increasing costs)
 - [Anthropic Best Practices](https://code.claude.com/docs/en/best-practices)
 - [Anthropic Memory / CLAUDE.md](https://code.claude.com/docs/en/memory) — under 200 lines per file, `@import` max 5 hops, CLAUDE.local.md for personal notes
 - [Anthropic Hooks](https://code.claude.com/docs/en/hooks) — 25 event types, command/http/prompt/agent handlers
