@@ -91,7 +91,7 @@ Tell the user: "Backed up your existing files. If anything goes wrong, your orig
 
 After generating or improving, BEFORE writing:
 
-1. **Compare original vs proposed** — read both side by side
+1. **Compare original vs proposed** — use Read to re-load the original CLAUDE.md RIGHT NOW (do not rely on what you read earlier — context may have decayed). Compare line by line against what you're about to write
 2. **For every line REMOVED**: confirm it was genuinely dead weight, not a hard-won project rule. If unsure, KEEP IT
 3. **For every line CHANGED**: confirm the new version is strictly more specific, not vaguer
 4. **For every line ADDED**: confirm it passes the load-bearing test — does Claude actually need this to avoid a mistake?
@@ -257,7 +257,7 @@ For each line, apply this decision tree:
 1. **Project-specific knowledge Claude cannot infer from code?** YES → Keep. NO → candidate for removal
 2. **Concrete and verifiable?** "Always validate inputs" → rewrite to "All API endpoints MUST validate with [schema lib]"
 3. **Missing context Claude needs?** Add build commands, test runners, architectural patterns, known gotchas
-4. **Duplicating what a linter/formatter enforces?** Remove from CLAUDE.md, confirm tool config exists
+4. **Duplicating what a linter/formatter enforces?** Remove from CLAUDE.md, but first use Glob to confirm the tool config actually exists (`.eslintrc*`, `.prettierrc*`, `ruff.toml`, `pyproject.toml [tool.ruff]`, `.editorconfig`, etc.). Only remove the CLAUDE.md rule if the config file is present
 5. **Has a positive alternative?** "Don't use X" → "Don't use X — use Y instead"
 
 ## Phase 3: Generate / Rewrite CLAUDE.md
@@ -511,7 +511,7 @@ When migrating a large CLAUDE.md:
 2. **Keep in root**: PROTECTED rules, product vision (1-3 lines), verification commands, cross-cutting rules, safety rules
 3. **Migrate MOVABLE rules** to path-scoped `.claude/rules/` files
 4. **Create reference links** in root: "For PDF pipeline rules: see `.claude/rules/pdf-pipeline.md`"
-5. **VERIFY nothing was lost** — diff original against sum of all new files. Every original line must exist somewhere. Present diff to user
+5. **VERIFY nothing was lost** — use Read to load BOTH the original CLAUDE.md AND every new file you generated (root CLAUDE.md + all `.claude/rules/*.md` files). For every line in the original, confirm it exists in one of the new files. Present a mapping to the user showing where each original section ended up
 
 ## Phase 5: Project Skill Generation
 
@@ -557,11 +557,11 @@ Skills load on demand via `/deploy`, not every session. This keeps the root CLAU
 CLAUDE.md rules are advisory. Hooks are deterministic — use hooks for enforcement that prose cannot reliably guarantee.
 
 **xforge MUST install hooks, not just recommend them.** During `/xforge` and `/xforge new`:
-1. Read the existing `.claude/settings.json` (create if missing)
-2. Merge the hooks below with any existing hooks (do not overwrite user's existing hooks)
-3. Present the diff to the user: "These hooks will be added to enforce your most critical rules"
-4. On approval, write the merged settings
-5. For `/xforge score`: only SHOW what hooks are missing — do not install
+1. Use **Read** on `.claude/settings.json` to load existing settings (if the file doesn't exist, start with `{}`)
+2. Merge the hooks below with any existing hooks — preserve everything the user already has, only ADD new entries
+3. Present the FULL merged JSON to the user showing exactly what will be added (mark new entries clearly)
+4. On user approval, use **Write** to save the merged `.claude/settings.json`
+5. For `/xforge score`: use **Read** on `.claude/settings.json`, SHOW what hooks are missing vs what's installed — do not write anything
 
 ### Safe Hook Patterns
 
@@ -594,7 +594,7 @@ For non-trivial hook logic, prefer script files in `.claude/hooks/` over inline 
 
 ### Stop Hook — Completion Gate
 
-**Only install this hook when the project has a working test command.** During Phase 1, verify the test command actually runs. If there's no test suite, SKIP this hook and note in the output: "No Stop hook installed — no test suite detected. Add tests, then run `/xforge` again to enable the completion gate."
+**Only install this hook when the project has a working test command.** During Phase 1, use **Bash** to actually run the detected test command (e.g., `pytest tests/ -q`, `npm test`, `go test ./...`) and check the exit code. If it passes (exit 0), install the hook with that command. If it fails or no test command exists, SKIP this hook and note in the output: "No Stop hook installed — [reason: no test suite / tests currently failing]. Fix tests, then run `/xforge` again to enable the completion gate."
 
 ```json
 {
