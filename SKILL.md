@@ -102,16 +102,16 @@ If the original is grade A or B, recommend targeted improvements — a scalpel, 
 
 ## Phase 1: Project Discovery
 
-Scan the project before writing a single rule:
+**You MUST use tools (Read, Glob, Grep, Bash) to actually inspect the project.** Do not guess or infer from the project name alone. Every item below requires reading real files or running real commands:
 
-1. **Language and framework** — package.json, Cargo.toml, go.mod, pyproject.toml, Makefile, etc.
-2. **Build/test/lint commands** — scripts section, Makefile targets, tool configs
-3. **Existing CLAUDE.md and rules** — read CLAUDE.md, .claude/CLAUDE.md, list .claude/rules/, check for CLAUDE.local.md
-4. **Project structure** — glob for source files to understand the stack
-5. **Test framework** — tests/, __tests__/, spec/ directories
-6. **Git setup** — remote, recent commits, branching pattern
-7. **Existing skills** — list .claude/skills/ to avoid duplicating workflows
-8. **CLAUDE.md age** — `git log -1 --format=%cr -- CLAUDE.md` and `git rev-list --count $(git log -1 --format=%H -- CLAUDE.md)..HEAD` to measure staleness (commits since last update)
+1. **Language and framework** — use Glob to find package.json, Cargo.toml, go.mod, pyproject.toml, Makefile, etc. Read the ones you find
+2. **Build/test/lint commands** — use Read to inspect the scripts section of package.json, Makefile targets, pyproject.toml tool configs. Extract the actual commands
+3. **Existing CLAUDE.md and rules** — use Read on CLAUDE.md, .claude/CLAUDE.md. Use Glob for `.claude/rules/**/*.md` and `.claude/skills/**/SKILL.md`. Check for CLAUDE.local.md
+4. **Project structure** — use Glob for source files (`**/*.ts`, `**/*.py`, `**/*.go`, etc.) to understand the actual stack and directory layout
+5. **Test framework** — use Glob for tests/, __tests__/, spec/, test/ directories. Read test configs
+6. **Git setup** — use Bash: `git remote -v`, `git log --oneline -10`, `git branch -a`
+7. **Existing skills** — use Glob for `.claude/skills/**/SKILL.md` to avoid duplicating workflows
+8. **CLAUDE.md age** — use Bash: `git log -1 --format=%cr -- CLAUDE.md` and `git rev-list --count $(git log -1 --format=%H -- CLAUDE.md)..HEAD` to measure staleness
 
 ### Clarifying Questions
 
@@ -138,18 +138,28 @@ For simple projects, skip the questions and infer from code. The threshold: if P
 | **No Redundancy** | No rules Claude can infer from code? No duplicating linter territory? |
 | **Positive Framing** | Every "don't X" has a "do Y instead"? |
 | **Architecture Clarity** | Non-obvious patterns, gotchas, and decisions documented? |
-| **Freshness** | Do referenced file paths exist? Do build/test commands work? Has CLAUDE.md been updated within the last ~20 commits? No stale patterns from refactored code? |
+| **Freshness** | Score based on staleness audit results above: dead paths (-2 each), broken commands (-3 each), missing patterns (-2 each), >50 commits stale (-5). Start at 10, subtract penalties |
 | **Layer Architecture** | Rules placed in the right layer? Root isn't a kitchen sink? Hooks for enforcement, skills for workflows, rules for scoping? |
 
 ### Staleness Audit (run during EVERY score and forge)
 
-Before scoring quality, check if the CLAUDE.md is even talking about the current codebase:
+Before scoring quality, **use tools to verify** the CLAUDE.md is still talking about the current codebase. Do NOT just read the CLAUDE.md and assume it's correct — cross-reference against the live project:
 
-1. **Path validation** — extract file paths from CLAUDE.md (backtick paths, `@imports`, `src/...` references). Check each exists on disk. **Skip paths inside example/template blocks** — only validate paths that appear to reference THIS project's actual files (contain the project's real directory names, not generic examples like `src/api/**`). Flag dead paths as warnings, not errors — the user confirms
-2. **Command validation** — extract shell commands from Verification/build sections specifically (not all code blocks — many are templates). Verify the binary exists (`command -v`). For build/test/lint commands, attempt a dry-run if safe (e.g., `npx tsc --noEmit` is safe, `npm run deploy` is not)
-3. **Pattern validation** — if CLAUDE.md mentions specific functions, classes, or modules by name (not generic placeholders), grep for them. Flag references to code that no longer exists
-4. **Age check** — how many commits since CLAUDE.md was last modified? If >50 commits or >90 days: flag as STALE and warn prominently in the score report
-5. **Config drift** — compare package.json scripts, Makefile targets, or pyproject.toml tool sections against what CLAUDE.md documents. Flag mismatches
+1. **Path validation** — read the CLAUDE.md, extract every file path that looks project-specific (backtick paths, `@imports`, `src/...` references). For each path, use **Glob** or **Bash `ls`** to check it exists on disk. **Skip generic examples** like `src/api/**` — only validate paths that reference THIS project's real directories. Flag dead paths as warnings, not errors — the user confirms
+2. **Command validation** — extract shell commands from the Verification/build sections of CLAUDE.md. Use **Bash `command -v`** to verify each binary exists. For build/test/lint commands, use **Bash** to attempt a safe dry-run (e.g., `npx tsc --noEmit` is safe, `npm run deploy` is NOT). Report which commands succeed and which fail
+3. **Pattern validation** — if CLAUDE.md mentions specific functions, classes, or modules by name, use **Grep** to search the codebase for them. Flag any that return zero matches — these are references to code that no longer exists
+4. **Age check** — use **Bash**: `git log -1 --format=%cr -- CLAUDE.md` and `git rev-list --count $(git log -1 --format=%H -- CLAUDE.md)..HEAD`. If >50 commits or >90 days: flag as STALE
+5. **Config drift** — use **Read** to compare the actual package.json scripts, Makefile targets, or pyproject.toml tool sections against what CLAUDE.md documents. Flag mismatches (e.g., CLAUDE.md says `npm test` but package.json has `vitest run`)
+
+**Show your work.** For each validation step, report what you checked and what you found. Example:
+```
+Staleness Report:
+- Path check: 12 paths validated, 2 dead → src/old-module/ (deleted), docs/v1-api.md (renamed to docs/api.md)
+- Command check: 4 commands tested → `ruff check` ✓, `pytest` ✓, `mypy src/` ✗ (mypy not installed)
+- Pattern check: 3 functions grepped → handle_upload() ✓, process_legacy() ✗ (not found), validate_input() ✓
+- Age: 23 commits since last update (14 days ago) → FRESH
+- Config drift: pyproject.toml scripts match CLAUDE.md ✓
+```
 
 **Staleness findings appear in the score report as a dedicated section**, before the 10-criteria breakdown. A file can score well on quality but still be dangerously stale.
 
