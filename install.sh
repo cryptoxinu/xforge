@@ -17,6 +17,8 @@ REPO_URL="https://github.com/cryptoxinu/xforge.git"
 XFORGE_REF="${XFORGE_REF:-main}"
 SKILL_DIR="$HOME/.claude/skills/xforge"
 CMD_DIR="$HOME/.claude/commands"
+# Backups live OUTSIDE ~/.claude/skills/ so they aren't auto-registered as duplicate skills
+BACKUP_DIR="$HOME/.claude/_xforge-backups"
 TS=$(date +%Y%m%d-%H%M%S)
 
 command -v git >/dev/null 2>&1 || { echo "error: git is required" >&2; exit 1; }
@@ -35,15 +37,16 @@ case "$XFORGE_REF" in
     ;;
 esac
 
-# Backup existing installs
+# Backup existing installs (OUTSIDE skills/ and commands/ to avoid auto-registration)
+mkdir -p "$BACKUP_DIR"
 if [[ -d "$SKILL_DIR" ]]; then
-  BACKUP="${SKILL_DIR}.backup.${TS}"
+  BACKUP="${BACKUP_DIR}/skills-xforge.${TS}"
   echo "Backing up existing skill install → ${BACKUP}"
   mv "$SKILL_DIR" "$BACKUP"
 fi
 for f in xforge-score.md xforge-new.md; do
   if [[ -f "$CMD_DIR/$f" ]]; then
-    mv "$CMD_DIR/$f" "$CMD_DIR/${f}.backup.${TS}"
+    mv "$CMD_DIR/$f" "${BACKUP_DIR}/${f}.${TS}"
   fi
 done
 
