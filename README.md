@@ -1,195 +1,161 @@
 # xforge
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-6B4FBB.svg)](https://code.claude.com/docs/en/skills)
-[![Anthropic Docs](https://img.shields.io/badge/Based_on-Official_Docs-orange.svg)](https://code.claude.com/docs/en/best-practices)
+**Xinu's ClaudeMD Fix — forge battle-tested CLAUDE.md files that actually get followed.**
 
-**Your CLAUDE.md sucks. xforge fixes it.**
+Stop fighting your AI assistant. `xforge` audits, scores, and generates CLAUDE.md files grounded in the official Claude Code docs (skills, memory, hooks, settings, checkpointing), HumanLayer's production research, and battle-tested community anti-slop rules from Boris Cherny, Thariq, Dex Horthy, Cat Wu, and others.
 
-Most CLAUDE.md files are either bloated junk drawers that Claude ignores, or empty files that do nothing. xforge audits yours, scores it, tells you what's wrong, and generates a replacement that Claude actually follows — with hooks that enforce the rules Claude can't be trusted to follow on its own.
+## What's new in v3
 
----
+v3 merges two lineages:
+- **v2.1.0's features** — staleness detection, 10-criteria scoring, SessionStart drift hook, placement framework (ROOT/RULE/SKILL/HOOK/LOCAL/PRUNE), install.sh ref-pinning
+- **v2 restructure** — multi-file progressive-disclosure skill folder per the official skills spec ("Keep SKILL.md under 500 lines"), docs-verified hook syntax, per-stack templates, clarifying-questions gate for domain-critical projects
 
-## What is this
+You get the deeper auditing of v2.1.0 in a maintainable folder structure that respects the 500-line SKILL.md cap.
 
-xforge is a [Claude Code skill](https://code.claude.com/docs/en/skills). You install it once, then run `/xforge` inside any Claude Code session. It:
+## Structure
 
-1. **Scans your project** — detects stack, build commands, test runners, existing rules
-2. **Audits for staleness** — validates file paths, commands, and patterns against the live codebase
-3. **Scores your CLAUDE.md** — grades A through F across 10 criteria, classifies every line, recommends where each rule belongs
-4. **Generates a replacement** — lean root file + scoped rules + hooks + settings, all wired up
-5. **Installs everything** — CLAUDE.md, `.claude/rules/`, `.claude/settings.json` hooks, permission deny rules, sandbox config, staleness prevention — one "write it" and you're done
+```
+xforge/
+├── SKILL.md                           # ~160-line orchestrator
+├── references/
+│   ├── grading-rubric.md              # 10 criteria / 100 pts (Freshness + Layer Architecture)
+│   ├── staleness-audit.md             # 5-step freshness check (paths, commands, patterns, age, config drift)
+│   ├── placement-framework.md         # ROOT / RULE / SKILL / HOOK / LOCAL / PRUNE classification
+│   ├── line-classification.md         # PROTECTED / MOVABLE / CONSOLIDATABLE / PRUNABLE tiers
+│   ├── anti-patterns.md
+│   ├── template-core.md               # 8 mandatory sections + compaction safety
+│   ├── templates/                     # python, typescript, go, rust, domain-critical overlay
+│   ├── hooks-recipes.md               # verified hook syntax + SessionStart staleness hook
+│   ├── migration-playbook.md          # large CLAUDE.md → .claude/rules/ with paths: scoping
+│   ├── important-if-pattern.md        # HumanLayer conditional-rule pattern (community)
+│   ├── acid-tests.md                  # Dex's "run tests first try" + partial-migration detector
+│   └── gotchas.md                     # xforge's own failure log, grows with use
+├── scripts/
+│   ├── detect-stack.sh                # dynamic stack detection via !` injection
+│   └── diff-preview.sh
+├── examples/
+│   ├── grade-b-targeted-fix.md
+│   └── grade-d-full-regen.md
+└── commands/
+    ├── xforge-score.md                # /xforge score (read-only)
+    └── xforge-new.md                  # /xforge new (from scratch)
+```
 
-It's not a linter. It's not a template. It's a system that decides where every instruction belongs and puts it there.
-
-### What's new in v2
-
-- **Staleness detection** — validates that file paths, build commands, and code patterns in your CLAUDE.md still exist in the actual codebase. Flags dead references before they mislead Claude
-- **Staleness prevention hook** — installs a SessionStart hook that warns when your CLAUDE.md drifts from the codebase (commit distance + config file changes)
-- **10-criteria scoring** (was 8) — added Freshness and Layer Architecture criteria
-- **Clarifying questions** — for complex domain projects, xforge asks about protected invariants, non-obvious architecture, and repeated Claude mistakes before generating
-- **Sandbox configuration** — installs sandbox profiles (strict or permissive) with clear explanation of what each setting does
-- **Multi-layer architecture for complex systems** — explicit guidance for projects needing 300+ lines of total instruction across root + rules + skills + hooks
-- **Compaction safety** — generated CLAUDE.md includes instructions to preserve critical state during context compaction
-- **Violation-to-hook upgrade pattern** — detects rules Claude repeatedly ignores and recommends converting them to deterministic hooks
-
-## Why
-
-Anthropic's own docs say CLAUDE.md instructions are **advisory** — Claude follows them most of the time, but not always, and compliance drops as the file gets longer. The fix isn't a longer file with more rules. The fix is:
-
-- A **short, high-signal root file** (under 200 lines) where every line earns its place
-- **Scoped rules** in `.claude/rules/` that only load when relevant
-- **Hooks** that deterministically enforce what prose cannot (test gates, format-on-save, push confirmation)
-- **Skills** for heavy workflows that don't need to load every session
-
-xforge builds all four layers for you.
+Main `/xforge` is the skill itself — dispatches modes based on `$ARGUMENTS`.
 
 ## Commands
 
-```
-/xforge score   Read-only. Staleness audit + grade + 10-criteria breakdown + placement analysis. Changes nothing.
-/xforge         Full pipeline. Backup → staleness audit → score → generate → install. Asks before writing.
-/xforge new     Fresh start. Generate full instruction architecture from scratch for the current project.
-```
+| Command | Changes files? | What it does |
+|---|---|---|
+| `/xforge score` | No | Read-only — staleness report, grade (A–F on /100), 10-criteria breakdown, line-by-line tier+placement classification, placement recommendations, acid tests |
+| `/xforge` | Yes (diff-gated) | Full pipeline — discover, staleness audit, 10-criteria score, classify, grade-based improve/generate, Do-No-Harm safety check, present diff |
+| `/xforge new` | Yes (diff-gated) | Generate fresh CLAUDE.md from scratch with correct stack template. For domain-critical projects, asks 4 clarifying questions first |
 
-When there's no project CLAUDE.md, xforge targets `~/.claude/CLAUDE.md` instead.
+When run outside a git repo or when no project CLAUDE.md exists, xforge targets `~/.claude/CLAUDE.md` instead.
 
-## What it generates
+## What v3 does that v2 / v2.1.0 didn't, combined
 
-```
-your-project/
-  CLAUDE.md                          # Lean root file — always-on rules only
-  CLAUDE.local.md                    # Your personal/machine-specific notes (gitignored)
-  .claude/
-    rules/
-      api-conventions.md             # Scoped to src/api/** — loads only when relevant
-      security.md                    # Cross-cutting — loads every session
-    skills/
-      deploy/SKILL.md                # Heavy deploy workflow — /deploy to invoke
-    settings.json                    # Hooks + permissions + sandbox config
-    hooks/
-      check-staleness.sh             # Warns on session start when CLAUDE.md drifts
-      pre-push-check.sh             # Script-based hook for complex logic
-```
+**From the restructure (new to v3):**
+- Progressive-disclosure skill folder — SKILL.md stays under 500 lines per official spec; deep knowledge lives in `references/` and loads on demand
+- Per-stack template overlays: python, typescript, go, rust, domain-critical
+- Per-mode entry points via `commands/xforge-score.md` and `commands/xforge-new.md`
+- Docs-verified hook syntax throughout (matcher-as-string + `if` field, not the old tool_name/file_glob form)
+- `<important if="…">` HumanLayer pattern (clearly flagged as community, not official)
+- Dynamic stack detection via `!${CLAUDE_SKILL_DIR}/scripts/detect-stack.sh` injection
 
-### Where each rule goes
+**From v2.1.0 (preserved in v3):**
+- **Staleness audit** — path/command/pattern validation against the live codebase + git age + config drift
+- **10-criteria scoring** (100 max) — adds Freshness + Layer Architecture to the original 8
+- **Placement framework** — every rule routed to ROOT / RULE / SKILL / HOOK / LOCAL / PRUNE
+- **Clarifying questions** for medical / financial / legal / security-critical projects
+- **SessionStart staleness hook** — warns when CLAUDE.md is drifting from the codebase, zero AI cost
+- **Compaction safety** instructions in generated CLAUDE.md
+- **install.sh hardening** — `set -euo pipefail`, `XFORGE_REF` pinning to tags/commits, mutable-ref warnings, atomic install
 
-| Layer | File | Loads | Use for |
-|---|---|---|---|
-| Root | `CLAUDE.md` | Always | Verification commands, anti-slop, planning, project boundary, git safety |
-| Rules | `.claude/rules/*.md` | Always or path-scoped | Domain policies, module-specific conventions |
-| Skills | `.claude/skills/*/SKILL.md` | On demand (`/command`) | Deploy, migrate, audit, compliance workflows |
-| Hooks | `.claude/settings.json` | On trigger (deterministic) | Format-on-save, test gate, push confirmation |
-| Local | `CLAUDE.local.md` | Always (gitignored) | Local ports, personal preferences, WIP notes |
+## Safety guarantees
 
-## What it fixes
+- **Do No Harm** — reads before/after, confirms every removal, presents a diff, keeps rules if unsure
+- **NEVER-PRUNE classification** — PROTECTED rules (security, compliance, PHI/PII, data governance) can never be removed
+- **Grade-based routing** — A/B → scalpel, C → rewrite-with-preservation, D/F → regen-with-knowledge-mining
+- **Staleness audit runs first** — quality scoring can't hide a file that's referencing dead paths
+- **Checkpointing awareness** — Claude Code auto-checkpoints Claude-edited files (Esc+Esc to rewind); xforge takes manual tar backups for bulk migrations only
 
-**Claude skips stuff** — You ask for 5 things, it does 3 and says "done." xforge generates rules that force Claude to plan first, track every requirement, and verify completeness before claiming done.
+## The 8 mandatory sections (generated CLAUDE.md)
 
-**Claude bloats code** — Adds unnecessary abstractions, speculative error handling, docstrings on code it didn't change. xforge generates anti-bloat rules: do exactly what was asked, no more, no less.
-
-**Claude doesn't plan** — Starts coding after reading the first sentence of your prompt. xforge makes Claude automatically present a plan and wait for approval before writing any code. You don't have to ask for it.
-
-**Claude says "done" but nothing works** — Tests pass but the feature isn't wired up. xforge generates wiring verification rules (prove the full data path) AND a Stop hook that blocks completion when tests fail.
-
-**Claude ignores your CLAUDE.md** — Because it's 300 lines of vague garbage. xforge keeps the root file lean and moves overflow to layers Claude actually reads.
-
-**Claude invents new patterns** — Ignores existing codebase conventions and makes up its own. xforge generates rules that force Claude to read existing code and match patterns exactly.
-
-**Your CLAUDE.md is stale** — You wrote it 3 months and 200 commits ago. Build commands changed, files moved, patterns were refactored — but your CLAUDE.md still references the old world. xforge runs a staleness audit (validates paths, commands, and patterns against the live codebase) and installs a session-start hook that warns when drift is detected.
-
-**Complex domain, too much to fit** — Medical, finance, legal projects need 300+ lines of instruction but a single bloated file gets ignored. xforge builds a multi-layer architecture: lean root file + path-scoped rules (load only when relevant) + skills (load on demand) + hooks (deterministic enforcement). Total instruction surface can be 500+ lines without diluting the core rules.
+1. **Anti-Slop Preamble** — overrides Claude's "simplest approach" default
+2. **Verification Commands** — stack-specific, copy-paste-ready, FORBIDDEN to skip (Dex's "run the tests first try" test)
+3. **Plan Enforcement** — separate plan from build, phased execution, 2-attempt escalation
+4. **Code Quality** — root causes not symptoms, re-read before edit, soft size guidelines, no premature simplification
+5. **Testing** — TDD, never weaken tests, strong assertions
+6. **Project Boundary + Git Safety** — no cross-project edits, no accidental pushes
+7. **Wiring Verification** — 9-item checklist proving features are wired end-to-end
+   **Plus 7b — Compaction Safety** — re-ground after `/compact`
+8. **Self-Improvement** — corrections compound into better rules
 
 ## Install
 
-### One-liner (pinned to a release)
+### One-liner
 
 ```bash
-# Pin to a specific version for reproducibility
-XFORGE_REF="v2.0.0" bash <(curl -fsSL \
-  "https://raw.githubusercontent.com/cryptoxinu/xforge/v2.0.0/install.sh")
+curl -fsSL https://raw.githubusercontent.com/cryptoxinu/xforge/main/install.sh | bash
 ```
 
-### With checksum verification
+### Pin a version (reproducible)
 
 ```bash
-XFORGE_REF="v2.0.0" \
-XFORGE_SHA256="<expected-sha256>" \
-bash <(curl -fsSL \
-  "https://raw.githubusercontent.com/cryptoxinu/xforge/v2.0.0/install.sh")
+XFORGE_REF=v3.0.0 bash <(curl -fsSL https://raw.githubusercontent.com/cryptoxinu/xforge/main/install.sh)
+```
+
+or pin to a commit SHA:
+
+```bash
+XFORGE_REF=82f9c0a bash <(curl -fsSL https://raw.githubusercontent.com/cryptoxinu/xforge/main/install.sh)
 ```
 
 ### Manual
 
 ```bash
 git clone https://github.com/cryptoxinu/xforge.git
-cd xforge
-git checkout v2.0.0
-./install.sh
+cd xforge && ./install.sh
 ```
 
-Installs to `~/.claude/skills/xforge/SKILL.md`. Run `/xforge score` in any Claude Code session to see where you stand.
+All methods install skill to `~/.claude/skills/xforge/` and commands (`xforge-score`, `xforge-new`) to `~/.claude/commands/`. Existing installs are backed up with a timestamp.
 
-### What the installer does
+After install, run `/xforge score` in any Claude Code session to see where you stand.
 
-1. Downloads `SKILL.md` from the pinned GitHub ref (not `main` unless you choose to)
-2. Verifies SHA-256 checksum if `XFORGE_SHA256` is set
-3. Writes to `~/.claude/skills/xforge/SKILL.md` via atomic temp file + move
-4. That's it. One file. No dependencies. No runtime. No network access after install.
+## Drift prevention — install the SessionStart hook
 
-The installer warns if you install from a mutable branch like `main`. Pin to a tag.
+After installing xforge, also install the staleness-prevention hook (recipe 7 in `references/hooks-recipes.md`). It fires at session start, checks commit distance + config file changes since CLAUDE.md was last touched, and warns you before Claude starts working off a stale file. Pure git + bash — zero token cost.
+
+## Size targets (sourced)
+
+- **Under 200 lines per CLAUDE.md** — official ([code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory))
+- **Under 60 lines in production** — HumanLayer's verified benchmark ([humanlayer.dev/blog/writing-a-good-claude-md](https://www.humanlayer.dev/blog/writing-a-good-claude-md))
+- **Under 500 lines per SKILL.md** — official skills cap ([code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills))
+
+Default target for generated root CLAUDE.md: ≤100 lines for non-domain-critical, up to 200 for domain-critical. Overflow goes to `.claude/rules/` with `paths:` scoping (loads on-demand when Claude touches matching files), or to `.claude/skills/` for heavy procedural content.
+
+## Research sources
+
+- [Claude Code docs](https://code.claude.com/docs/en) — skills, memory, hooks, settings, checkpointing (verified 2026-04)
+- [HumanLayer — writing-a-good-claude-md](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
+- [HumanLayer — stop-claude-from-ignoring-your-claude-md](https://www.hlyr.dev/blog/stop-claude-from-ignoring-your-claude-md)
+- [Boris Cherny's tips](https://howborisusesclaudecode.com/)
+- [Thariq — how we use skills](https://x.com/trq212/status/2033949937936085378)
+- [shanraisshan/claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) — aggregated community patterns
 
 ## Security
 
-**This is a Claude Code skill, not a prompt injection attack.**
-
-xforge is a single markdown file (`SKILL.md`) that teaches Claude how to generate and maintain CLAUDE.md instruction files. The directives inside (`MUST`, `NEVER`, `IMPORTANT`, `FORBIDDEN`) are the [standard way to write effective CLAUDE.md files](https://code.claude.com/docs/en/best-practices) per Anthropic's official documentation.
-
-What xforge does NOT do:
-- No code execution at runtime (it's a markdown file with instructions)
-- No network access (the installer downloads once, then it's local)
-- No hidden instructions (read the full SKILL.md — it's plain text)
-- No data exfiltration, no phone-home, no telemetry
-- No system file modification (it writes to `.claude/` project directories only)
-
-What the installer does:
-- Downloads one file from GitHub over HTTPS
-- Optionally verifies SHA-256 checksum
-- Writes to `~/.claude/skills/xforge/` and nothing else
-- Uses `set -euo pipefail` with atomic file operations
-
-The generated `.claude/settings.json` includes permission deny rules that **restrict** Claude's access — blocking reads to `.env`, credentials, secrets, and writes outside the project directory. xforge makes your setup more locked down, not less.
-
-If a security scanner flags the SKILL.md content: the directives are inside markdown code blocks as CLAUDE.md templates. They are instructions FOR Claude, not injections INTO Claude. This is the intended use of the [Claude Code skills system](https://code.claude.com/docs/en/skills).
-
-## How it relates to /init
-
-`/init` generates a starter CLAUDE.md. xforge is the hardening pass:
-
-```
-/init          →  basic CLAUDE.md with project info
-/xforge score  →  how good is it? what's missing? what's in the wrong place?
-/xforge        →  fix it — lean root + scoped rules + hooks + settings
-```
-
-They complement each other. Use both.
-
-## Based on
-
-All guidance in xforge is sourced from Anthropic's official documentation:
-
-- [Best Practices](https://code.claude.com/docs/en/best-practices) — CLAUDE.md structure, verification, planning
-- [Memory](https://code.claude.com/docs/en/memory) — file locations, `@import` depth limits, CLAUDE.local.md
-- [Hooks](https://code.claude.com/docs/en/hooks) — event types, handler types, deterministic enforcement
-- [Settings](https://code.claude.com/docs/en/settings) — permissions, sandbox, scope precedence
-- [Skills](https://code.claude.com/docs/en/skills) — SKILL.md format, frontmatter, dynamic context
-- [Sandboxing](https://www.anthropic.com/engineering/claude-code-sandboxing) — filesystem + network isolation
-
-Where xforge adds opinionated rules (anti-slop, wiring verification, phased execution), they are clearly labeled as battle-tested patterns from production use, not official Anthropic guidance.
+This is a legitimate Claude Code skill, not prompt injection. It ships:
+- Verified hook syntax against the official hooks docs
+- install.sh with `set -euo pipefail`, atomic installs, and `XFORGE_REF` pinning to tags or commits
+- Backup of existing installs with timestamps
+- No network calls at runtime (only at install time, for git clone)
+- No destructive operations without diff-gate + user approval
 
 ## License
 
-[MIT](LICENSE)
+MIT
 
 ## Author
 
